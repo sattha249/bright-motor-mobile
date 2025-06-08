@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 
 class LoginComponent extends StatefulWidget {
   final Function(String, String) onLogin;
+  final Function(String, String) onInputChanged;
 
   const LoginComponent({
     Key? key,
     required this.onLogin,
+    required this.onInputChanged,
   }) : super(key: key);
 
   @override
@@ -18,7 +20,23 @@ class _LoginComponentState extends State<LoginComponent> {
   final _passwordController = TextEditingController();
 
   @override
+  void initState() {
+    super.initState();
+    _usernameController.addListener(_onInputChanged);
+    _passwordController.addListener(_onInputChanged);
+  }
+
+  void _onInputChanged() {
+    widget.onInputChanged(
+      _usernameController.text,
+      _passwordController.text,
+    );
+  }
+
+  @override
   void dispose() {
+    _usernameController.removeListener(_onInputChanged);
+    _passwordController.removeListener(_onInputChanged);
     _usernameController.dispose();
     _passwordController.dispose();
     super.dispose();

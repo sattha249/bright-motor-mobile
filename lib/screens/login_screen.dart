@@ -1,29 +1,88 @@
 import 'package:flutter/material.dart';
 import '../components/login_component.dart';
 import 'welcome_screen.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import '../models/auth_model.dart';
+import '../services/auth_service.dart';
+import '../screens/main_layout.dart';
 
-class LoginScreen extends StatelessWidget {
+class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
 
-  // Mock credentials
-  static const String _mockUsername = 'admin';
-  static const String _mockPassword = 'password123';
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
 
-  void _handleLogin(BuildContext context, String username, String password) {
-    if (username == _mockUsername && password == _mockPassword) {
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (context) => WelcomeScreen(username: username),
-        ),
+class _LoginScreenState extends State<LoginScreen> {
+  String _currentUsername = '';
+  String _currentPassword = '';
+  final _authService = AuthService();
+
+  Future<void> _handleLogin(String username, String password) async {
+    try {
+      final baseUrl = dotenv.env['API_URL'] ?? 'http://localhost:3333';
+      final url = '$baseUrl/login';
+      print('Attempting login to: $url');
+      
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'username': username,
+          'password': password,
+        }),
       );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Invalid username or password'),
-          backgroundColor: Colors.red,
-        ),
-      );
+
+      print('Response status: ${response.statusCode}');
+      print('Response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        // Parse the response and save the token
+        final authResponse = AuthResponse.fromJson(jsonDecode(response.body));
+        await _authService.saveToken(authResponse);
+        
+        if (mounted) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (context) => const MainLayout(),
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Server error: ${response.body}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print('Login error details: $e');
+      if (e is http.ClientException) {
+        print('Connection error details: ${e.message}');
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Connection error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
+  }
+
+  void _onInputChanged(String username, String password) {
+    setState(() {
+      _currentUsername = username;
+      _currentPassword = password;
+    });
   }
 
   @override
@@ -44,16 +103,13 @@ class LoginScreen extends StatelessWidget {
               ),
               const SizedBox(height: 32),
               LoginComponent(
-                onLogin: (username, password) => _handleLogin(
-                  context,
-                  username,
-                  password,
-                ),
+                onLogin: _handleLogin,
+                onInputChanged: _onInputChanged,
               ),
               const SizedBox(height: 16),
-              const Text(
-                'Hint: Use admin/password123',
-                style: TextStyle(
+              Text(
+                'Current Input: $_currentUsername / $_currentPassword',
+                style: const TextStyle(
                   color: Colors.grey,
                   fontSize: 12,
                 ),

@@ -1,49 +1,80 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+import '../models/product_model.dart';
+import '../services/product_service.dart';
+import '../providers/cart_provider.dart';
+import 'cart_screen.dart';
 
-class CategoryPage extends StatefulWidget {
-  const CategoryPage({Key? key}) : super(key: key);
+class CategoryScreen extends StatefulWidget {
+  const CategoryScreen({Key? key}) : super(key: key);
 
   @override
-  _CategoryPageState createState() => _CategoryPageState();
+  State<CategoryScreen> createState() => _CategoryScreenState();
 }
 
-class _CategoryPageState extends State<CategoryPage> {
-  Map<String, List<dynamic>> groupedData = {};
-  String? selectedCategory;
+class _CategoryScreenState extends State<CategoryScreen> {
+  final ProductService _productService = ProductService();
+  String? _selectedCategory;
+  List<Product> _products = [];
+  Map<String, int> _categoryCounts = {};
+  bool _isLoading = true;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
-    loadJson();
+    _loadData();
   }
 
-  Future<void> loadJson() async {
+  Future<void> _loadData() async {
     try {
-      final jsonStr = await rootBundle.loadString('assets/grouped_data.json');
-      final List<dynamic> rawList = json.decode(jsonStr);
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
 
+      // Load category counts
+      final categoryCounts = await _productService.getCategoryCounts();
+      
+      // Get first category
+      final firstCategory = categoryCounts.keys.first;
+      
+      // Load products for first category
+      final products = await _productService.getProducts(category: firstCategory);
 
       setState(() {
-        groupedData = {
-          for (var item in rawList)
-            if (item['category'] != null && item['items'] != null)
-              item['category'].toString(): item['items'] as List<dynamic>
-          
-        };
+        _categoryCounts = categoryCounts;
+        _selectedCategory = firstCategory;
+        _products = products.data;
+        _isLoading = false;
       });
     } catch (e) {
-      debugPrint('Error loading JSON: $e');
-      // Show a snackbar with the error
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Error loading data. Please make sure the JSON file exists.'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      setState(() {
+        _error = e.toString();
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _selectCategory(String category) async {
+    try {
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
+
+      final products = await _productService.getProducts(category: category);
+
+      setState(() {
+        _selectedCategory = category;
+        _products = products.data;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+        _isLoading = false;
+      });
     }
   }
 
@@ -51,86 +82,124 @@ class _CategoryPageState extends State<CategoryPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('สินค้า'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.home),
-            onPressed: () => Navigator.of(context).pop(),
-          ),
-        ],
+        title: const Text('Products by Category'),
       ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Category Buttons
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: Row(
-              children: groupedData.keys.map((category) {
-                final isSelected = category == selectedCategory;
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: isSelected ? Colors.blue : null,
-                      foregroundColor: isSelected ? Colors.white : null,
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _error != null
+              ? Center(child: Text('Error: $_error'))
+              : Column(
+                  children: [
+                    // Category buttons
+                    Container(
+                      height: 60,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: _categoryCounts.length,
+                        itemBuilder: (context, index) {
+                          final category = _categoryCounts.keys.elementAt(index);
+                          final count = _categoryCounts[category]!;
+                          final isSelected = category == _selectedCategory;
+
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            child: ElevatedButton(
+                              onPressed: () => _selectCategory(category),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: isSelected ? Colors.blue : Colors.grey[200],
+                                foregroundColor: isSelected ? Colors.white : Colors.black,
+                              ),
+                              child: Text('$category ($count)'),
+                            ),
+                          );
+                        },
+                      ),
                     ),
-                    onPressed: () {
-                      setState(() {
-                        selectedCategory = category;
-                      });
-                    },
-                    child: Text(category),
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
-          const Divider(),
-          // Item List
-          Expanded(
-            child: selectedCategory == null
-                ? const Center(child: Text('กรุณาเลือกหมวดหมู่'))
-                : ListView.builder(
-                    itemCount: groupedData[selectedCategory]?.length ?? 0,
-                    itemBuilder: (context, index) {
-                      final item = groupedData[selectedCategory]![index];
-                      return Card(
-                        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        child: ListTile(
-                          title: Text(item['รายละเอียด'] ?? '-'),
-                          subtitle: Text(item['ยี่ห้อ'] ?? ''),
-                          onTap: () {
-                            showDialog(
-                              context: context,
-                              builder: (_) => AlertDialog(
-                                title: Text(item['รายการ'] ?? 'รายละเอียด'),
-                                content: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text('รายละเอียด: ${item['รายละเอียด'] ?? '-'}'),
-                                    Text('ยี่ห้อ: ${item['ยี่ห้อ'] ?? '-'}'),
-                                    Text('รุ่น.1: ${item['รุ่น.1'] ?? '-'}'),
-                                    Text('หน่วยนับ: ${item['หน่วยนับ'] ?? '-'}'),
-                                  ],
-                                ),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () => Navigator.pop(context),
-                                    child: const Text('ปิด'),
+
+                    // Products list
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: _products.length,
+                        itemBuilder: (context, index) {
+                          final product = _products[index];
+                          return Card(
+                            margin: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            child: ListTile(
+                              title: Text(product.description),
+                              subtitle: Text(
+                                'Cost: ${product.costPrice} | Sell: ${product.sellPrice} ${product.unit}',
+                              ),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(product.brand.isNotEmpty ? product.brand : 'No brand'),
+                                  IconButton(
+                                    icon: const Icon(Icons.add_shopping_cart),
+                                    onPressed: () {
+                                      context.read<CartProvider>().addItem(product);
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text('${product.description} added to cart'),
+                                          duration: const Duration(seconds: 2),
+                                        ),
+                                      );
+                                    },
                                   ),
                                 ],
                               ),
-                            );
-                          },
-                        ),
-                      );
-                    },
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+      floatingActionButton: Consumer<CartProvider>(
+        builder: (context, cart, child) {
+          return Stack(
+            children: [
+              FloatingActionButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const CartScreen(),
+                    ),
+                  );
+                },
+                child: const Icon(Icons.shopping_cart),
+              ),
+              if (cart.itemCount > 0)
+                Positioned(
+                  right: 0,
+                  top: 0,
+                  child: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    constraints: const BoxConstraints(
+                      minWidth: 20,
+                      minHeight: 20,
+                    ),
+                    child: Text(
+                      '${cart.itemCount}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
                   ),
-          ),
-        ],
+                ),
+            ],
+          );
+        },
       ),
     );
   }
