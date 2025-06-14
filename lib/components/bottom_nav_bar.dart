@@ -30,6 +30,10 @@ class BottomNavBar extends StatelessWidget {
           label: 'Orders',
         ),
         BottomNavigationBarItem(
+          icon: Icon(Icons.people),
+          label: 'Customers',
+        ),
+        BottomNavigationBarItem(
           icon: Icon(Icons.person),
           label: 'Profile',
         ),

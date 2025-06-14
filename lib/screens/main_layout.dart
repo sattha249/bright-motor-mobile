@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../components/bottom_nav_bar.dart';
 import 'category_screen.dart';
+import 'customer_screen.dart';
 import 'login_screen.dart';
 import 'welcome_screen.dart';
 
@@ -18,6 +19,7 @@ class _MainLayoutState extends State<MainLayout> {
     const WelcomeScreen(username: 'User'), // Replace with actual home screen
     const CategoryScreen(),
     const Center(child: Text('Orders')), // Replace with actual orders screen
+    const CustomerScreen(),
     const Center(child: Text('Profile')), // Replace with actual profile screen
   ];
 

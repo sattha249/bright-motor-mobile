@@ -47,12 +47,12 @@ class _LoginScreenState extends State<LoginScreen> {
         
         if (mounted) {
           Navigator.of(context).pushReplacement(
-            MaterialPageRoute(
+        MaterialPageRoute(
               builder: (context) => const MainLayout(),
-            ),
-          );
+        ),
+      );
         }
-      } else {
+    } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -68,13 +68,13 @@ class _LoginScreenState extends State<LoginScreen> {
         print('Connection error details: ${e.message}');
       }
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Connection error: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
     }
   }
 

@@ -89,53 +89,53 @@ class _CategoryScreenState extends State<CategoryScreen> {
           : _error != null
               ? Center(child: Text('Error: $_error'))
               : Column(
-                  children: [
+        children: [
                     // Category buttons
                     Container(
                       height: 60,
                       padding: const EdgeInsets.symmetric(horizontal: 8),
                       child: ListView.builder(
-                        scrollDirection: Axis.horizontal,
+            scrollDirection: Axis.horizontal,
                         itemCount: _categoryCounts.length,
                         itemBuilder: (context, index) {
                           final category = _categoryCounts.keys.elementAt(index);
                           final count = _categoryCounts[category]!;
                           final isSelected = category == _selectedCategory;
 
-                          return Padding(
+                return Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 4),
-                            child: ElevatedButton(
+                  child: ElevatedButton(
                               onPressed: () => _selectCategory(category),
-                              style: ElevatedButton.styleFrom(
+                    style: ElevatedButton.styleFrom(
                                 backgroundColor: isSelected ? Colors.blue : Colors.grey[200],
                                 foregroundColor: isSelected ? Colors.white : Colors.black,
-                              ),
-                              child: Text('$category ($count)'),
-                            ),
-                          );
-                        },
-                      ),
                     ),
+                              child: Text('$category ($count)'),
+                  ),
+                );
+                        },
+            ),
+          ),
 
                     // Products list
-                    Expanded(
+          Expanded(
                       child: ListView.builder(
                         itemCount: _products.length,
-                        itemBuilder: (context, index) {
+                    itemBuilder: (context, index) {
                           final product = _products[index];
-                          return Card(
+                      return Card(
                             margin: const EdgeInsets.symmetric(
                               horizontal: 8,
                               vertical: 4,
                             ),
-                            child: ListTile(
+                        child: ListTile(
                               title: Text(product.description),
                               subtitle: Text(
                                 'Cost: ${product.costPrice} | Sell: ${product.sellPrice} ${product.unit}',
                               ),
                               trailing: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
                                   Text(product.brand.isNotEmpty ? product.brand : 'No brand'),
                                   IconButton(
                                     icon: const Icon(Icons.add_shopping_cart),
@@ -151,12 +151,12 @@ class _CategoryScreenState extends State<CategoryScreen> {
                                   ),
                                 ],
                               ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ],
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ],
                 ),
       floatingActionButton: Consumer<CartProvider>(
         builder: (context, cart, child) {
