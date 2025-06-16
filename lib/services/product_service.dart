@@ -1,13 +1,75 @@
 import 'dart:convert';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../models/product_model.dart';
-import 'auth_service.dart';
+import 'session_preferences.dart';
 
-class ProductService {
-  final AuthService _authService = AuthService();
+final productServiceProvider = Provider.autoDispose<ProductService>((ref) {
+  return MockProductService();
+});
+
+abstract class ProductService {
+  Future<ProductResponse> getProducts({String? category});
+
+
+  Future<Map<String, int>> getCategoryCounts() async {
+    try {
+      final products = await getProducts();
+      final categoryCounts = <String, int>{};
+
+      for (var product in products.data) {
+        categoryCounts[product.category] = (categoryCounts[product.category] ?? 0) + 1;
+      }
+
+      return categoryCounts;
+    } catch (e) {
+      throw Exception('Error getting category counts: $e');
+    }
+  }
+
+}
+
+
+class MockProductService extends ProductService {
+  @override
+  Future<ProductResponse> getProducts({String? category}) async {
+    return ProductResponse(
+      meta: Meta(
+        total: 10,
+        perPage: 10,
+        currentPage: 1,
+        lastPage: 1,
+        firstPage: 1,
+        firstPageUrl: 'http://localhost:3333/products?category=category',
+        lastPageUrl: 'http://localhost:3333/products?category=category',
+        nextPageUrl: null,
+        previousPageUrl: null,
+      ),
+      data: [
+        Product(
+          id: 1,
+          category: 'category',
+          description: 'Product Description',
+          brand: 'brand',
+          model: 'model',
+          costPrice: '100',
+          sellPrice: '200',
+          unit: 'unit',
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        ),
+      ],
+    );
+  }
+
+}
+
+class ProductServiceImpl extends ProductService {
+  final SessionPreferences _authService = SessionPreferences();
   String get baseUrl => dotenv.env['API_URL'] ?? 'http://localhost:3333';
 
+  @override
   Future<ProductResponse> getProducts({String? category}) async {
     try {
       final headers = await _authService.getAuthHeader();
@@ -30,18 +92,4 @@ class ProductService {
     }
   }
 
-  Future<Map<String, int>> getCategoryCounts() async {
-    try {
-      final products = await getProducts();
-      final categoryCounts = <String, int>{};
-      
-      for (var product in products.data) {
-        categoryCounts[product.category] = (categoryCounts[product.category] ?? 0) + 1;
-      }
-      
-      return categoryCounts;
-    } catch (e) {
-      throw Exception('Error getting category counts: $e');
-    }
-  }
 } 

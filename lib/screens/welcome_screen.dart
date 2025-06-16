@@ -1,23 +1,32 @@
+import 'package:brightmotor_store/main.dart';
+import 'package:brightmotor_store/screens/login_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'category_screen.dart';
 
-class WelcomeScreen extends StatelessWidget {
+class WelcomeScreen extends ConsumerWidget {
   final String username;
 
   const WelcomeScreen({
-    Key? key,
+    super.key,
     required this.username,
-  }) : super(key: key);
+  });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Welcome'),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
-            onPressed: () => Navigator.of(context).pop(),
+            onPressed: () async {
+              final sessionPreference = ref.read(sessionPreferenceProvider);
+              await sessionPreference.logout();
+              Navigator.of(context).pushReplacement(MaterialPageRoute(
+                builder: (context) => const LoginScreen(),
+              ));
+            },
           ),
         ],
       ),

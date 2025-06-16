@@ -1,5 +1,8 @@
+import 'package:brightmotor_store/screens/main_layout.dart';
+import 'package:brightmotor_store/services/session_preferences.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart' hide ChangeNotifierProvider;
+import 'package:provider/provider.dart' hide Provider, FutureProvider;
 import 'screens/login_screen.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'providers/cart_provider.dart';
@@ -10,47 +13,65 @@ void main() async {
   runApp(const MyApp());
 }
 
+final sessionPreferenceProvider = Provider<SessionPreferences>((ref) {
+  return SessionPreferences();
+});
+
+final isLoggedInProvider = FutureProvider<bool>((ref) async {
+  final sessionPreference = ref.read(sessionPreferenceProvider);
+  return await sessionPreference.isLoggedIn();
+});
+
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (ctx) => CartProvider(),
-      child: MaterialApp(
-        title: 'Bright Store',
-        theme: ThemeData(
-          // This is the theme of your application.
-          //
-          // TRY THIS: Try running your application with "flutter run". You'll see
-          // the application has a purple toolbar. Then, without quitting the app,
-          // try changing the seedColor in the colorScheme below to Colors.green
-          // and then invoke "hot reload" (save your changes or press the "hot
-          // reload" button in a Flutter-supported IDE, or press "r" if you used
-          // the command line to start the app).
-          //
-          // Notice that the counter didn't reset back to zero; the application
-          // state is not lost during the reload. To reset the state, use hot
-          // restart instead.
-          //
-          // This works for code too, not just values: Most code changes can be
-          // tested with just a hot reload.
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: Colors.blue,
-            primary: Colors.blue,
-            secondary: Colors.blueAccent,
-          ),
-          useMaterial3: true,
-          elevatedButtonTheme: ElevatedButtonThemeData(
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+    return ProviderScope(
+      child: ChangeNotifierProvider(
+        create: (ctx) => CartProvider(),
+        child: MaterialApp(
+          debugShowCheckedModeBanner: false,
+          title: 'Bright Store',
+          theme: ThemeData(
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: Colors.blue,
+              primary: Colors.blue,
+              secondary: Colors.blueAccent,
+            ),
+            useMaterial3: true,
+            elevatedButtonTheme: ElevatedButtonThemeData(
+              style: ElevatedButton.styleFrom(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              ),
             ),
           ),
+          home: const SessionScreen(),
         ),
-        home: const LoginScreen(),
       ),
     );
+  }
+}
+
+class SessionScreen extends ConsumerWidget {
+  const SessionScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isLoggedIn = ref.watch(isLoggedInProvider);
+
+    return isLoggedIn.when(
+        data: (data) {
+          if (data) {
+            return MainLayout();
+          } else {
+            return LoginScreen();
+          }
+        },
+        error: (_, __) => LoginScreen(),
+        loading: () => SizedBox.shrink());
   }
 }
 

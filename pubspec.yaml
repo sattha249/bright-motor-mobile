@@ -38,7 +38,9 @@ dependencies:
   http: ^1.4.0
   flutter_dotenv: ^5.2.1
   shared_preferences: ^2.5.3
-  provider: ^6.1.2
+  hooks_riverpod: ^2.6.1
+  flutter_hooks: ^0.21.2
+  provider: ^6.1.5
 
 dev_dependencies:
   flutter_test:
@@ -50,6 +52,8 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+  custom_lint: ^0.7.5
+  riverpod_lint: ^2.6.5
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

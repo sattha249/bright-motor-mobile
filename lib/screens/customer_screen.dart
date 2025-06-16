@@ -3,15 +3,15 @@ import '../models/customer.dart';
 import '../services/customer_service.dart';
 
 class CustomerScreen extends StatefulWidget {
-  const CustomerScreen({Key? key}) : super(key: key);
+  const CustomerScreen({super.key});
 
   @override
   State<CustomerScreen> createState() => _CustomerScreenState();
 }
 
 class _CustomerScreenState extends State<CustomerScreen> {
-  final CustomerService _customerService = CustomerService();
-  List<Customer> _customers = [];
+  final CustomerService _customerService = MockCustomerService();
+  final List<Customer> _customers = [];
   bool _isLoading = true;
   String? _error;
   int _currentPage = 1;

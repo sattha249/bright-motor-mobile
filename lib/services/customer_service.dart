@@ -2,13 +2,51 @@ import 'dart:convert';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import '../models/customer.dart';
-import 'auth_service.dart';
+import 'session_preferences.dart';
 
-class CustomerService {
+abstract class CustomerService {
+  Future<Map<String, dynamic>> getCustomers({int page = 1});
+}
+
+class MockCustomerService extends CustomerService {
+  @override
+  Future<Map<String, dynamic>> getCustomers({int page = 1}) async {
+    return {
+      'customers': [
+        Customer(
+          id: 1,
+          email: 'john.doe@example.com',
+          customerNo: 'CUS-1234',
+          name: 'Test Example',
+          tel: '0812345678',
+          address: '12/23',
+          district: 'Test Dist',
+          province: 'Test PRovic',
+          postCode: '12345',
+          country: 'TH',
+        ),
+      ],
+      'meta': {
+        'total': 1,
+        'perPage': 1,
+        'currentPage': 1,
+        'lastPage': 1,
+        'firstPage': 1,
+        'firstPageUrl': 'http://localhost:3333/customers?page=1',
+        'lastPageUrl': 'http://localhost:3333/customers?page=1',
+        'nextPageUrl': null,
+        'previousPageUrl': null,
+      },
+    };
+  }
+}
+
+class CustomerServiceImpl extends CustomerService {
   String get baseUrl => dotenv.env['API_URL'] ?? 'http://localhost:3333';
 
-  final AuthService _authService = AuthService();
+  final SessionPreferences _authService = SessionPreferences();
 
+  @override
   Future<Map<String, dynamic>> getCustomers({int page = 1}) async {
     try {
       final token = await _authService.getToken();
@@ -25,7 +63,7 @@ class CustomerService {
         final List<Customer> customers = (data['data'] as List)
             .map((json) => Customer.fromJson(json))
             .toList();
-        
+
         return {
           'customers': customers,
           'meta': data['meta'],
@@ -37,4 +75,4 @@ class CustomerService {
       throw Exception('Error: $e');
     }
   }
-} 
+}

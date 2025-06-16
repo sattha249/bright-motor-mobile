@@ -6,14 +6,14 @@ import '../providers/cart_provider.dart';
 import 'cart_screen.dart';
 
 class CategoryScreen extends StatefulWidget {
-  const CategoryScreen({Key? key}) : super(key: key);
+  const CategoryScreen({super.key});
 
   @override
   State<CategoryScreen> createState() => _CategoryScreenState();
 }
 
 class _CategoryScreenState extends State<CategoryScreen> {
-  final ProductService _productService = ProductService();
+  final ProductService _productService = MockProductService();
   String? _selectedCategory;
   List<Product> _products = [];
   Map<String, int> _categoryCounts = {};
