@@ -1,3 +1,4 @@
+import 'package:brightmotor_store/screens/home/home_screen.dart';
 import 'package:brightmotor_store/screens/main_layout.dart';
 import 'package:brightmotor_store/services/session_preferences.dart';
 import 'package:flutter/material.dart';
@@ -65,7 +66,7 @@ class SessionScreen extends ConsumerWidget {
     return isLoggedIn.when(
         data: (data) {
           if (data) {
-            return MainLayout();
+            return HomeScreen();
           } else {
             return LoginScreen();
           }

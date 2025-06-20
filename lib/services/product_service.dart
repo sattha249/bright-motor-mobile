@@ -6,12 +6,13 @@ import '../models/product_model.dart';
 import 'session_preferences.dart';
 
 final productServiceProvider = Provider.autoDispose<ProductService>((ref) {
-  return MockProductService();
+  return ProductServiceImpl();
 });
 
 abstract class ProductService {
   Future<ProductResponse> getProducts({String? category});
 
+  //TODO integrate with get product with truck...
 
   Future<Map<String, int>> getCategoryCounts() async {
     try {

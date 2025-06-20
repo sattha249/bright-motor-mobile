@@ -10,6 +10,7 @@ import 'package:http/http.dart' as http;
 import 'package:riverpod/riverpod.dart';
 
 final authServiceProvider = Provider.autoDispose<AuthService>((ref) {
+  return AuthServiceImpl();
   return MockAuthService();
 });
 

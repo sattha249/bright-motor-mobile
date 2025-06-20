@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import '../models/customer.dart';
 import '../services/customer_service.dart';
 
+Future<Customer?> launchCustomerChooser(BuildContext context) {
+  return Navigator.of(context).push(MaterialPageRoute(builder: (context) => CustomerScreen(), fullscreenDialog: true));
+}
+
 class CustomerScreen extends StatefulWidget {
   const CustomerScreen({super.key});
 
@@ -10,7 +14,7 @@ class CustomerScreen extends StatefulWidget {
 }
 
 class _CustomerScreenState extends State<CustomerScreen> {
-  final CustomerService _customerService = MockCustomerService();
+  final CustomerService _customerService = CustomerServiceImpl();
   final List<Customer> _customers = [];
   bool _isLoading = true;
   String? _error;
@@ -66,27 +70,30 @@ class _CustomerScreenState extends State<CustomerScreen> {
                     }
 
                     final customer = _customers[index];
-                    return Card(
-                      margin: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      child: ListTile(
-                        title: Text(customer.name),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Customer No: ${customer.customerNo}'),
-                            Text('Tel: ${customer.tel}'),
-                            if (customer.address.isNotEmpty)
-                              Text('Address: ${customer.address}'),
-                            if (customer.district.isNotEmpty)
-                              Text('District: ${customer.district}'),
-                            if (customer.province.isNotEmpty)
-                              Text('Province: ${customer.province}'),
-                          ],
+                    return GestureDetector(
+                      onTap: () => Navigator.pop(context, customer),
+                      child: Card(
+                        margin: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
                         ),
-                        isThreeLine: true,
+                        child: ListTile(
+                          title: Text(customer.name),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Customer No: ${customer.customerNo}'),
+                              Text('Tel: ${customer.tel}'),
+                              if (customer.address.isNotEmpty)
+                                Text('Address: ${customer.address}'),
+                              if (customer.district.isNotEmpty)
+                                Text('District: ${customer.district}'),
+                              if (customer.province.isNotEmpty)
+                                Text('Province: ${customer.province}'),
+                            ],
+                          ),
+                          isThreeLine: true,
+                        ),
                       ),
                     );
                   },

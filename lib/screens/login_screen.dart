@@ -1,14 +1,10 @@
+import 'package:brightmotor_store/screens/home/home_screen.dart';
 import 'package:brightmotor_store/services/auth_service.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+
 import '../components/login_component.dart';
-import 'welcome_screen.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-import '../models/auth_model.dart';
 import '../services/session_preferences.dart';
-import '../screens/main_layout.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -54,7 +50,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     if (context.mounted) {
                       Navigator.of(context).pushReplacement(
                         MaterialPageRoute(
-                          builder: (context) => const MainLayout(),
+                          builder: (context) => const HomeScreen(),
                         ),
                       );
                     }

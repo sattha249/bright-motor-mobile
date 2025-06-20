@@ -13,7 +13,7 @@ class CategoryScreen extends StatefulWidget {
 }
 
 class _CategoryScreenState extends State<CategoryScreen> {
-  final ProductService _productService = MockProductService();
+  final ProductService _productService = ProductServiceImpl();
   String? _selectedCategory;
   List<Product> _products = [];
   Map<String, int> _categoryCounts = {};
