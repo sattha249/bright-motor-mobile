@@ -1,9 +1,13 @@
+import 'dart:convert';
+
+import 'package:brightmotor_store/services/sell_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../models/product_model.dart';
 
 final cartProvider = StateNotifierProvider.autoDispose<CartProvider, List<Product>>((ref) {
-  return CartProvider([]);
+  final sellService = ref.read(sellServiceProvider);
+  return CartProvider(sellService);
 });
 
 
@@ -28,10 +32,18 @@ final cartTotalAmountProvider = Provider.autoDispose<double>((ref) {
   });
 });
 
-class CartProvider extends StateNotifier<List<Product>> {
-  final Map<Product, int> _items = {};
+final cartTotalPriceProvider = Provider.autoDispose<String>((ref) {
+  final carts = ref.watch(cartProvider);
+  final totalAmount = carts.fold(0.0, (total, product) {
+    return total + double.parse(product.sellPrice);
+  });
+  return totalAmount.toStringAsFixed(2);
+});
 
-  CartProvider(super.state);
+class CartProvider extends StateNotifier<List<Product>> {
+  final SellService sellService;
+
+  CartProvider(this.sellService) : super([]);
 
   void addItem(Product product) {
     state = [...state, product];
@@ -43,5 +55,9 @@ class CartProvider extends StateNotifier<List<Product>> {
 
   void clear() {
     state = [];
+  }
+
+  Future<void> submit(int truckId, int customerId, bool isCredit, Map<Product, int> items) async {
+    await sellService.sellLog(truckId, customerId, isCredit, items);
   }
 } 

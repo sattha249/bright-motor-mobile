@@ -86,10 +86,12 @@ class CategoryScreen extends HookConsumerWidget {
         children: [
           FloatingActionButton(
             onPressed: () {
+              final data = customer;
+              if (data == null) return;
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const CartScreen(),
+                  builder: (context) => CartScreen(customer: data,),
                 ),
               );
             },
