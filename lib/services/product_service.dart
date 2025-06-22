@@ -12,23 +12,6 @@ final productServiceProvider = Provider.autoDispose<ProductService>((ref) {
 abstract class ProductService {
   Future<ProductResponse> getProducts({String? category});
 
-  //TODO integrate with get product with truck...
-
-  Future<Map<String, int>> getCategoryCounts() async {
-    try {
-      final products = await getProducts();
-      final categoryCounts = <String, int>{};
-
-      for (var product in products.data) {
-        categoryCounts[product.category] = (categoryCounts[product.category] ?? 0) + 1;
-      }
-
-      return categoryCounts;
-    } catch (e) {
-      throw Exception('Error getting category counts: $e');
-    }
-  }
-
 }
 
 

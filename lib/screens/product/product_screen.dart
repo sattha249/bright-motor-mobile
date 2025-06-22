@@ -12,6 +12,6 @@ class ProductScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CategoryScreen();
+    return CategoryScreen(customer: customer);
   }
 }

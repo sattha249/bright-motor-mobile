@@ -1,12 +1,10 @@
 import 'package:brightmotor_store/screens/home/home_screen.dart';
-import 'package:brightmotor_store/screens/main_layout.dart';
 import 'package:brightmotor_store/services/session_preferences.dart';
 import 'package:flutter/material.dart';
-import 'package:hooks_riverpod/hooks_riverpod.dart' hide ChangeNotifierProvider;
-import 'package:provider/provider.dart' hide Provider, FutureProvider;
-import 'screens/login_screen.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'providers/cart_provider.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart' hide ChangeNotifierProvider;
+
+import 'screens/login_screen.dart';
 
 void main() async {
   await dotenv.load(fileName: ".env");
@@ -30,27 +28,24 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ProviderScope(
-      child: ChangeNotifierProvider(
-        create: (ctx) => CartProvider(),
-        child: MaterialApp(
-          debugShowCheckedModeBanner: false,
-          title: 'Bright Store',
-          theme: ThemeData(
-            colorScheme: ColorScheme.fromSeed(
-              seedColor: Colors.blue,
-              primary: Colors.blue,
-              secondary: Colors.blueAccent,
-            ),
-            useMaterial3: true,
-            elevatedButtonTheme: ElevatedButtonThemeData(
-              style: ElevatedButton.styleFrom(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              ),
+      child: MaterialApp(
+        debugShowCheckedModeBanner: false,
+        title: 'Bright Store',
+        theme: ThemeData(
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: Colors.blue,
+            primary: Colors.blue,
+            secondary: Colors.blueAccent,
+          ),
+          useMaterial3: true,
+          elevatedButtonTheme: ElevatedButtonThemeData(
+            style: ElevatedButton.styleFrom(
+              padding:
+              const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
             ),
           ),
-          home: const SessionScreen(),
         ),
+        home: const SessionScreen(),
       ),
     );
   }

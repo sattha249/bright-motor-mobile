@@ -1,17 +1,21 @@
+import 'package:brightmotor_store/providers/truck_provider.dart';
 import 'package:brightmotor_store/screens/customer_screen.dart';
 import 'package:brightmotor_store/screens/login_screen.dart';
 import 'package:brightmotor_store/screens/product/product_screen.dart';
 import 'package:brightmotor_store/services/session_preferences.dart';
 import 'package:flutter/material.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final truck = ref.watch(currentTruckProvider);
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Welcome <User>'),
+        title: Text('Welcome ${truck?.fullName ?? '-'}'),
         centerTitle: false,
         actions: [
           IconButton(

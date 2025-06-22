@@ -1,44 +1,47 @@
 import 'package:flutter/foundation.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../models/product_model.dart';
 
-class CartProvider with ChangeNotifier {
+final cartProvider = StateNotifierProvider.autoDispose<CartProvider, List<Product>>((ref) {
+  return CartProvider([]);
+});
+
+
+final cartWithQuantityProvider = Provider.autoDispose<Map<Product, int>>((ref) {
+  //get items from cartProvider
+  final items = ref.watch(cartProvider);
+  return items.fold<Map<Product, int>>({}, (map, product) {
+    map[product] = (map[product] ?? 0) + 1;
+    return map;
+  });
+});
+
+final cartItemCountProvider = Provider.autoDispose<int>((ref) {
+  final carts = ref.watch(cartProvider);
+  return carts.length;
+});
+
+final cartTotalAmountProvider = Provider.autoDispose<double>((ref) {
+  final carts = ref.watch(cartProvider);
+  return carts.fold(0.0, (total, product) {
+    return total + double.parse(product.sellPrice);
+  });
+});
+
+class CartProvider extends StateNotifier<List<Product>> {
   final Map<Product, int> _items = {};
 
-  Map<Product, int> get items => {..._items};
-
-  int get itemCount => _items.length;
-
-  double get totalAmount {
-    var total = 0.0;
-    _items.forEach((product, quantity) {
-      total += double.parse(product.sellPrice) * quantity;
-    });
-    return total;
-  }
+  CartProvider(super.state);
 
   void addItem(Product product) {
-    if (_items.containsKey(product)) {
-      _items[product] = (_items[product] ?? 0) + 1;
-    } else {
-      _items[product] = 1;
-    }
-    notifyListeners();
+    state = [...state, product];
   }
 
   void removeItem(Product product) {
-    if (!_items.containsKey(product)) {
-      return;
-    }
-    if (_items[product]! > 1) {
-      _items[product] = _items[product]! - 1;
-    } else {
-      _items.remove(product);
-    }
-    notifyListeners();
+    state = [...state]..remove(product);
   }
 
   void clear() {
-    _items.clear();
-    notifyListeners();
+    state = [];
   }
 } 

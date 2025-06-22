@@ -37,6 +37,39 @@ class Product {
       updatedAt: json['updated_at'] != null ? DateTime.parse(json['updated_at']) : null,
     );
   }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+
+    return other is Product &&
+        other.id == id &&
+        other.category == category &&
+        other.description == description &&
+        other.brand == brand &&
+        other.model == model &&
+        other.costPrice == costPrice &&
+        other.sellPrice == sellPrice &&
+        other.unit == unit &&
+        other.createdAt == createdAt &&
+        other.updatedAt == updatedAt;
+  }
+
+  @override
+  int get hashCode {
+    return id.hashCode ^
+    category.hashCode ^
+    description.hashCode ^
+    brand.hashCode ^
+    model.hashCode ^
+    costPrice.hashCode ^
+    sellPrice.hashCode ^
+    unit.hashCode ^
+    createdAt.hashCode ^
+    updatedAt.hashCode;
+  }
+
+
 }
 
 class ProductResponse {
