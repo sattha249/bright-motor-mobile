@@ -1,3 +1,4 @@
+import 'package:brightmotor_store/components/product_tile.dart';
 import 'package:brightmotor_store/models/customer.dart';
 import 'package:brightmotor_store/providers/product_provider.dart';
 import 'package:flutter/material.dart';
@@ -9,14 +10,18 @@ import 'cart_screen.dart';
 
 class CategoryScreen extends HookConsumerWidget {
   final Customer? customer;
+
   const CategoryScreen({super.key, this.customer});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final truckId = ref.watch(currentTruckIdProvider);
     final itemCount = ref.watch(cartItemCountProvider);
     final selectedCategory = useState<String?>("ทั้งหมด");
-    final products = ref.watch(productByCategoriesProvider(ProductCategoryParams(truckId: customer?.id, category: selectedCategory.value)));
-    final categories = ref.watch(productCategoriesProvider(customer?.id));
+    final products = ref.watch(productByCategoriesProvider(
+        ProductCategoryParams(
+            truckId: truckId, category: selectedCategory.value)));
+    final categories = ref.watch(productCategoriesProvider);
     return Scaffold(
       appBar: AppBar(
         title: const Text('Products by Category'),
@@ -53,29 +58,11 @@ class CategoryScreen extends HookConsumerWidget {
               itemCount: products.length,
               itemBuilder: (context, index) {
                 final product = products[index];
-                return Card(
-                  margin: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  child: ListTile(
-                    title: Text(product.description),
-                    subtitle: Text(
-                      'Cost: ${product.costPrice} | Sell: ${product.sellPrice} ${product.unit}',
-                    ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(product.brand.isNotEmpty ? product.brand : 'No brand'),
-                        IconButton(
-                          icon: const Icon(Icons.add_shopping_cart),
-                          onPressed: () {
-                            ref.read(cartProvider.notifier).addItem(product);
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
+                return ProductTile(
+                  product: product,
+                  onAction: (product) {
+                    ref.read(cartProvider.notifier).addItem(product);
+                  },
                 );
               },
             ),
@@ -91,7 +78,9 @@ class CategoryScreen extends HookConsumerWidget {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => CartScreen(customer: data,),
+                  builder: (context) => CartScreen(
+                    customer: data,
+                  ),
                 ),
               );
             },
@@ -125,4 +114,4 @@ class CategoryScreen extends HookConsumerWidget {
       ),
     );
   }
-} 
+}

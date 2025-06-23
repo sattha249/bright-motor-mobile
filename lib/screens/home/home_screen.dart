@@ -2,6 +2,7 @@ import 'package:brightmotor_store/providers/truck_provider.dart';
 import 'package:brightmotor_store/screens/customer_screen.dart';
 import 'package:brightmotor_store/screens/login_screen.dart';
 import 'package:brightmotor_store/screens/product/product_screen.dart';
+import 'package:brightmotor_store/screens/product/product_search_screen.dart';
 import 'package:brightmotor_store/services/session_preferences.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -71,12 +72,26 @@ class HomeScreen extends ConsumerWidget {
                   ),
                   GestureDetector(
                     onTap: () async {
-                      //choose customer
-                      final customer = await launchCustomerChooser(context);
-                      if (customer == null) return;
+                      if (truck?.truckId != null) {
+                        final customer = await launchCustomerChooser(context);
+                        if (customer == null) return;
 
-                      // launch product screen by sending customer into it.
-                      Navigator.of(context).push(MaterialPageRoute(builder: (context) => ProductScreen(customer: customer)));
+                        // launch product screen by sending customer into it.
+                        Navigator.of(context).push(MaterialPageRoute(builder: (context) => ProductScreen(customer: customer)));  
+                      } else {
+                        showAdaptiveDialog(context: context, builder: (context) => AlertDialog(
+                          content: Text("Cannot create order without truck info"),
+                          actions: [
+                            TextButton(
+                              onPressed: () {
+                                Navigator.of(context).pop();
+                              },
+                              child: Text("Close"),
+                            ),
+                          ],
+                        ));
+                      }
+                      
 
 
                     },
@@ -87,6 +102,17 @@ class HomeScreen extends ConsumerWidget {
                       ),
                     ),
                   ),
+                  GestureDetector(
+                    onTap: () => {
+                      Navigator.of(context).push(MaterialPageRoute(builder: (context) => ProductSearchScreen()))
+                    },
+                    child: Card(
+                      child: ListTile(
+                        title: Text("Products"),
+                        trailing: Icon(Icons.chevron_right),
+                      ),
+                    ),
+                  )
                 ],
               ),
             ),

@@ -1,8 +1,6 @@
-import 'dart:convert';
-
 import 'package:brightmotor_store/services/sell_service.dart';
-import 'package:flutter/foundation.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+
 import '../models/product_model.dart';
 
 final cartProvider = StateNotifierProvider.autoDispose<CartProvider, List<Product>>((ref) {

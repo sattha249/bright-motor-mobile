@@ -12,6 +12,8 @@ final productServiceProvider = Provider.autoDispose<ProductService>((ref) {
 abstract class ProductService {
   Future<ProductResponse> getProducts({String? category});
 
+  Future<ProductResponse> search(String query);
+
 }
 
 
@@ -47,6 +49,10 @@ class MockProductService extends ProductService {
     );
   }
 
+  @override
+  Future<ProductResponse> search(String query) {
+    throw UnimplementedError();
+  }
 }
 
 class ProductServiceImpl extends ProductService {
@@ -60,6 +66,26 @@ class ProductServiceImpl extends ProductService {
       final url = category != null 
           ? '$baseUrl/products?category=$category'
           : '$baseUrl/products';
+
+      final response = await http.get(
+        Uri.parse(url),
+        headers: headers,
+      );
+
+      if (response.statusCode == 200) {
+        return ProductResponse.fromJson(jsonDecode(response.body));
+      } else {
+        throw Exception('Failed to load products: ${response.body}');
+      }
+    } catch (e) {
+      throw Exception('Error fetching products: $e');
+    }
+  }
+  @override
+  Future<ProductResponse> search(String query) async {
+    try {
+      final headers = await _authService.getAuthHeader();
+      final url = '$baseUrl/products?search=$query';
 
       final response = await http.get(
         Uri.parse(url),

@@ -1,11 +1,15 @@
 import 'package:brightmotor_store/models/product_model.dart';
+import 'package:brightmotor_store/providers/truck_provider.dart';
 import 'package:brightmotor_store/services/product_service.dart';
 import 'package:brightmotor_store/services/truck_service.dart';
-import 'package:collection/collection.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
-final productsProvider = StateNotifierProvider.autoDispose
-    .family<ProductNotifier, List<Product>, int?>((ref, truckId) {
+final currentTruckIdProvider = Provider.autoDispose<int?>((ref) {
+  return ref.watch(currentTruckProvider.select((value) => value?.truckId));
+});
+
+final productsProvider = StateNotifierProvider.autoDispose<ProductNotifier, List<Product>>((ref) {
+  final truckId = ref.read(currentTruckIdProvider);
   return ProductNotifier(
     service: ref.read(productServiceProvider),
     truckService: ref.read(truckServiceProvider),
@@ -14,11 +18,13 @@ final productsProvider = StateNotifierProvider.autoDispose
 });
 
 final productCategoriesProvider =
-    Provider.autoDispose.family<Map<String, int>, int?>((ref, truckId) {
-  final products = ref.watch(productsProvider(truckId));
+    Provider.autoDispose<Map<String, int>>((ref) {
+  final products = ref.watch(productsProvider);
   final categoryCounts = <String, int>{};
 
-  categoryCounts["ทั้งหมด"] = products.length;
+  if (products.isNotEmpty) {
+    categoryCounts["ทั้งหมด"] = products.length;
+  }
   for (var product in products) {
     categoryCounts[product.category] =
         (categoryCounts[product.category] ?? 0) + 1;
@@ -29,7 +35,7 @@ final productCategoriesProvider =
 
 final productByCategoriesProvider = Provider.autoDispose
     .family<List<Product>, ProductCategoryParams>((ref, params) {
-  final products = ref.watch(productsProvider(params.truckId));
+  final products = ref.watch(productsProvider);
   if (params.category == null || params.category == "ทั้งหมด") {
     return products;
   } else {
@@ -50,6 +56,7 @@ class ProductNotifier extends StateNotifier<List<Product>> {
 
   void reload() async {
     if (truckId != null) {
+      //TODO: make it pagination.
       final response = await truckService.getTruckStocks(truckId!);
       final data = response.data.map((event) => event.product)
           .nonNulls
