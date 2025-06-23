@@ -38,6 +38,21 @@ class Product {
     );
   }
 
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'category': category,
+      'description': description,
+      'brand': brand,
+      'model': model,
+      'cost_price': costPrice,
+      'sell_price': sellPrice,
+      'unit': unit,
+      'created_at': createdAt,
+      'updated_at': updatedAt,
+    };
+  }
+
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;

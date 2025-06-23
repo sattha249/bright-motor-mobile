@@ -40,7 +40,7 @@ class SellService {
     final body = {
       'truck_id': truckId,
       'customer_id': customerId,
-      'is_credit': isCredit,
+      'is_credit': null,
       'items': itemsJson,
     };
 

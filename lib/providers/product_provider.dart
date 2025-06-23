@@ -1,6 +1,7 @@
 import 'package:brightmotor_store/models/product_model.dart';
 import 'package:brightmotor_store/services/product_service.dart';
 import 'package:brightmotor_store/services/truck_service.dart';
+import 'package:collection/collection.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 final productsProvider = StateNotifierProvider.autoDispose
@@ -47,11 +48,16 @@ class ProductNotifier extends StateNotifier<List<Product>> {
       {required this.service, required this.truckService, this.truckId})
       : super([]);
 
-  void reload() {
-    //TODO: switch it with truck service once it has data.
-    service.getProducts().then((value) {
-      state = value.data;
-    });
+  void reload() async {
+    if (truckId != null) {
+      final response = await truckService.getTruckStocks(truckId!);
+      final data = response.data.map((event) => event.product)
+          .nonNulls
+          .toSet()
+          .toList();
+
+      state = data;
+    }
   }
 }
 

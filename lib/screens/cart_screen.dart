@@ -83,7 +83,7 @@ class CartScreen extends ConsumerWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              'Total: \$${totalAmount.toStringAsFixed(2)}',
+              'Total: ${totalAmount.toStringAsFixed(2)}',
               style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
