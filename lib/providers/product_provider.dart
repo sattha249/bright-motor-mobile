@@ -8,7 +8,8 @@ final currentTruckIdProvider = Provider.autoDispose<int?>((ref) {
   return ref.watch(currentTruckProvider.select((value) => value?.truckId));
 });
 
-final productsProvider = StateNotifierProvider.autoDispose<ProductNotifier, List<Product>>((ref) {
+final productsProvider =
+    StateNotifierProvider.autoDispose<ProductNotifier, List<Product>>((ref) {
   final truckId = ref.read(currentTruckIdProvider);
   return ProductNotifier(
     service: ref.read(productServiceProvider),
@@ -17,8 +18,7 @@ final productsProvider = StateNotifierProvider.autoDispose<ProductNotifier, List
   )..reload();
 });
 
-final productCategoriesProvider =
-    Provider.autoDispose<Map<String, int>>((ref) {
+final productCategoriesProvider = Provider.autoDispose<Map<String, int>>((ref) {
   final products = ref.watch(productsProvider);
   final categoryCounts = <String, int>{};
 
@@ -50,20 +50,36 @@ class ProductNotifier extends StateNotifier<List<Product>> {
   final TruckService truckService;
   final int? truckId;
 
-  ProductNotifier(
-      {required this.service, required this.truckService, this.truckId})
-      : super([]);
+  List<Product> _originProducts = [];
+  List<Product> _searchProducts = [];
+
+  ProductNotifier({
+    required this.service,
+    required this.truckService,
+    this.truckId,
+  }) : super([]);
 
   void reload() async {
     if (truckId != null) {
       //TODO: make it pagination.
       final response = await truckService.getTruckStocks(truckId!);
-      final data = response.data.map((event) => event.product)
-          .nonNulls
-          .toSet()
-          .toList();
+      final data =
+          response.data.map((event) => event.product).nonNulls.toSet().toList();
 
+      _originProducts = data;
       state = data;
+    }
+  }
+
+  void search(String query) async {
+    print("search($query)");
+    if (query.isNotEmpty) {
+      state = _originProducts;
+    } else {
+      final result = await service.search(query);
+      print(result.data);
+      _searchProducts = result.data;
+      state = _searchProducts;
     }
   }
 }
