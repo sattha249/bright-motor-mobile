@@ -32,15 +32,15 @@ class SellService {
     final itemsJson = <Map>[];
     for (var item in items.entries) {
       itemsJson.add({
-        'product_id': item.key.id,
+        'productId': item.key.id,
         'quantity': item.value,
         'price': item.key.sellPrice
       });
     }
     final body = {
-      'truck_id': truckId,
-      'customer_id': customerId,
-      'is_credit': null,
+      'truckId': truckId,
+      'customerId': customerId,
+      'isCredit': null,
       'items': itemsJson,
     };
 
