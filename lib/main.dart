@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:brightmotor_store/screens/home/home_screen.dart';
 import 'package:brightmotor_store/services/session_preferences.dart';
 import 'package:flutter/material.dart';
@@ -8,7 +10,7 @@ import 'screens/login_screen.dart';
 
 void main() async {
   await dotenv.load(fileName: ".env");
-  print('API URL from env: ${dotenv.env['API_URL']}');
+  debugPrint('API URL from env: ${dotenv.env['API_URL']}');
   runApp(const MyApp());
 }
 
@@ -28,6 +30,9 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ProviderScope(
+      observers: [
+        _Logger()
+      ],
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
         title: 'Bright Store',
@@ -157,4 +162,20 @@ class _MyHomePageState extends State<MyHomePage> {
       ), // This trailing comma makes auto-formatting nicer for build methods.
     );
   }
+}
+
+
+class _Logger extends ProviderObserver {
+
+  @override
+  void didUpdateProvider(ProviderBase<Object?> provider, Object? previousValue, Object? newValue, ProviderContainer container) {
+    final map = {
+      "provider": provider.toString(),
+      "prev_value": previousValue?.toString(),
+      "new_value": newValue?.toString()
+    };
+    debugPrint(jsonEncode(map));
+    super.didUpdateProvider(provider, previousValue, newValue, container);
+  }
+
 }

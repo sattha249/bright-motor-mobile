@@ -41,6 +41,7 @@ dependencies:
   hooks_riverpod: ^2.6.1
   flutter_hooks: ^0.21.2
   collection: ^1.19.1
+  pretty_http_logger: ^1.0.5
 
 dev_dependencies:
   flutter_test:

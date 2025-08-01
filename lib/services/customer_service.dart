@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:brightmotor_store/providers/network_provider.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import '../models/customer.dart';
@@ -50,7 +51,7 @@ class CustomerServiceImpl extends CustomerService {
   Future<Map<String, dynamic>> getCustomers({int page = 1}) async {
     try {
       final token = await _authService.getToken();
-      final response = await http.get(
+      final response = await defaultHttpClient().get(
         Uri.parse('$baseUrl/customers?page=$page'),
         headers: {
           'Authorization': 'Bearer $token',

@@ -4,6 +4,7 @@ import 'dart:convert';
 
 import 'package:brightmotor_store/main.dart';
 import 'package:brightmotor_store/models/product_model.dart';
+import 'package:brightmotor_store/providers/network_provider.dart';
 import 'package:brightmotor_store/services/session_preferences.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -45,7 +46,7 @@ class SellService {
     };
 
     final token = await preferences.getToken();
-    final response = await http.post(
+    final response = await defaultHttpClient().post(
       Uri.parse('$baseUrl/sell-logs'),
       headers: {
         'Authorization': 'Bearer $token',
@@ -54,8 +55,8 @@ class SellService {
       body: jsonEncode(body),
     );
 
-    print(jsonDecode(response.body));
-    if (response.statusCode == 200) {
+
+    if (response.statusCode >= 200 && response.statusCode <= 299) {
       print('Sell log submitted successfully');
     } else {
       //log json error

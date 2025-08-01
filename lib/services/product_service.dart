@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:brightmotor_store/providers/network_provider.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -67,7 +68,7 @@ class ProductServiceImpl extends ProductService {
           ? '$baseUrl/products?category=$category'
           : '$baseUrl/products';
 
-      final response = await http.get(
+      final response = await defaultHttpClient().get(
         Uri.parse(url),
         headers: headers,
       );
@@ -87,7 +88,7 @@ class ProductServiceImpl extends ProductService {
       final headers = await _authService.getAuthHeader();
       final url = '$baseUrl/products?search=$query';
 
-      final response = await http.get(
+      final response = await defaultHttpClient().get(
         Uri.parse(url),
         headers: headers,
       );

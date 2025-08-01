@@ -1,5 +1,6 @@
 import 'package:brightmotor_store/models/customer.dart';
 import 'package:brightmotor_store/providers/cart_provider.dart';
+import 'package:brightmotor_store/providers/product_provider.dart';
 import 'package:brightmotor_store/providers/truck_provider.dart';
 import 'package:brightmotor_store/screens/complete_screen.dart';
 import 'package:flutter/material.dart';
@@ -34,6 +35,7 @@ class CheckoutScreen extends HookConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final truckId = ref.watch(currentTruckIdProvider);
     final carts = ref.watch(cartWithQuantityProvider);
     final totalPrice = ref.watch(cartTotalPriceProvider);
     final currentPaymentMethod = useState(PaymentMethod.cash);
@@ -153,9 +155,9 @@ class CheckoutScreen extends HookConsumerWidget {
       bottomNavigationBar: Container(
         padding: const EdgeInsets.all(16)
             .copyWith(bottom: MediaQuery.of(context).viewPadding.bottom),
-        child: ElevatedButton(onPressed: () async {
+        child: ElevatedButton(
+            onPressed: () async {
 
-          final truckId = ref.read(currentTruckProvider)?.id;
           if (truckId == null) return;
           final customerId = customer.id;
           final isCredit = currentPaymentMethod.value != PaymentMethod.cash;
@@ -166,7 +168,6 @@ class CheckoutScreen extends HookConsumerWidget {
             await launchCheckoutCompleteScreen(context);
             Navigator.of(context).popUntil((route) => route.isFirst);
           } catch (e, stacktrace) {
-            print(e);
             print(stacktrace);
           }
 
