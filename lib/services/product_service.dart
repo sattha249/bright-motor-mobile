@@ -1,13 +1,23 @@
 import 'dart:convert';
+
+import 'package:brightmotor_store/main.dart';
 import 'package:brightmotor_store/providers/network_provider.dart';
+import 'package:brightmotor_store/providers/product_provider.dart';
+import 'package:brightmotor_store/services/sell_service.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import 'package:http/http.dart' as http;
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 import '../models/product_model.dart';
 import 'session_preferences.dart';
 
 final productServiceProvider = Provider.autoDispose<ProductService>((ref) {
-  return ProductServiceImpl();
+  final truckId = ref.watch(currentTruckIdProvider);
+  final endpoint =  ref.watch(baseUrlProvider);
+  final preferences = ref.watch(sessionPreferenceProvider);
+  return ProductServiceImpl(
+    authService: preferences,
+    baseUrl: endpoint,
+    truckId: truckId,
+  );
 });
 
 abstract class ProductService {
@@ -17,53 +27,21 @@ abstract class ProductService {
 
 }
 
-
-class MockProductService extends ProductService {
-  @override
-  Future<ProductResponse> getProducts({String? category}) async {
-    return ProductResponse(
-      meta: Meta(
-        total: 10,
-        perPage: 10,
-        currentPage: 1,
-        lastPage: 1,
-        firstPage: 1,
-        firstPageUrl: 'http://localhost:3333/products?category=category',
-        lastPageUrl: 'http://localhost:3333/products?category=category',
-        nextPageUrl: null,
-        previousPageUrl: null,
-      ),
-      data: [
-        Product(
-          id: 1,
-          category: 'category',
-          description: 'Product Description',
-          brand: 'brand',
-          model: 'model',
-          costPrice: '100',
-          sellPrice: '200',
-          unit: 'unit',
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-        ),
-      ],
-    );
-  }
-
-  @override
-  Future<ProductResponse> search(String query) {
-    throw UnimplementedError();
-  }
-}
-
 class ProductServiceImpl extends ProductService {
-  final SessionPreferences _authService = SessionPreferences();
-  String get baseUrl => dotenv.env['API_URL'] ?? 'http://localhost:3333';
+  final SessionPreferences authService;
+  final String baseUrl;
+  final int? truckId;
+
+  ProductServiceImpl({
+    required this.authService,
+    required this.baseUrl,
+    this.truckId,
+  }) : super();
 
   @override
   Future<ProductResponse> getProducts({String? category}) async {
     try {
-      final headers = await _authService.getAuthHeader();
+      final headers = await authService.getAuthHeader();
       final url = category != null 
           ? '$baseUrl/products?category=$category'
           : '$baseUrl/products';
@@ -82,10 +60,12 @@ class ProductServiceImpl extends ProductService {
       throw Exception('Error fetching products: $e');
     }
   }
+
   @override
   Future<ProductResponse> search(String query) async {
     try {
-      final headers = await _authService.getAuthHeader();
+      final headers = await authService.getAuthHeader();
+      //FIXME: add truck_id to scope the search to a specific truck
       final url = '$baseUrl/products?search=$query';
 
       final response = await defaultHttpClient().get(
@@ -102,5 +82,4 @@ class ProductServiceImpl extends ProductService {
       throw Exception('Error fetching products: $e');
     }
   }
-
-} 
+}

@@ -2,15 +2,12 @@
 import 'dart:convert';
 
 import 'package:brightmotor_store/main.dart';
-import 'package:brightmotor_store/models/product_model.dart';
 import 'package:brightmotor_store/models/truck_info.dart';
 import 'package:brightmotor_store/models/truck_response.dart';
 import 'package:brightmotor_store/providers/network_provider.dart';
 import 'package:brightmotor_store/services/session_preferences.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart' show dotenv;
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import 'package:http/http.dart' as http;
 
 final truckServiceProvider = Provider.autoDispose<TruckService>((ref) {
   final baseUrl = dotenv.env['API_URL'] ?? 'http://localhost:3333';
@@ -49,7 +46,7 @@ class TruckService {
 
 
       final response = await defaultHttpClient().get(
-        Uri.parse("$endpoint/trucks/$truckId/stocks"),
+        Uri.parse("$endpoint/trucks/$truckId/stocks?perPage=50"),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',

@@ -6,12 +6,13 @@ import '../models/customer.dart';
 import 'session_preferences.dart';
 
 abstract class CustomerService {
-  Future<Map<String, dynamic>> getCustomers({int page = 1});
+  Future<Map<String, dynamic>> getCustomers({required String query, int page = 1});
+
 }
 
 class MockCustomerService extends CustomerService {
   @override
-  Future<Map<String, dynamic>> getCustomers({int page = 1}) async {
+  Future<Map<String, dynamic>> getCustomers({required String query, int page = 1}) async {
     return {
       'customers': [
         Customer(
@@ -47,31 +48,58 @@ class CustomerServiceImpl extends CustomerService {
 
   final SessionPreferences _authService = SessionPreferences();
 
+
   @override
-  Future<Map<String, dynamic>> getCustomers({int page = 1}) async {
+  Future<Map<String, dynamic>> getCustomers({required String query, int page = 1}) async {
     try {
       final token = await _authService.getToken();
-      final response = await defaultHttpClient().get(
-        Uri.parse('$baseUrl/customers?page=$page'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-      );
+      if (query.isNotEmpty) {
+        final response = await defaultHttpClient().get(
+          Uri.parse('$baseUrl/customers?search=$query&page=$page'),
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+        );
 
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final List<Customer> customers = (data['data'] as List)
-            .map((json) => Customer.fromJson(json))
-            .toList();
+        if (response.statusCode == 200) {
+          final data = json.decode(response.body);
+          final List<Customer> customers = (data['data'] as List)
+              .map((json) => Customer.fromJson(json))
+              .toList();
 
-        return {
-          'customers': customers,
-          'meta': data['meta'],
-        };
+          return {
+            'customers': customers,
+            'meta': data['meta'],
+          };
+        } else {
+          throw Exception('Failed to load customers');
+        }
       } else {
-        throw Exception('Failed to load customers');
+        final response = await defaultHttpClient().get(
+          Uri.parse('$baseUrl/customers?page=$page'),
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+        );
+        if (response.statusCode == 200) {
+          final data = json.decode(response.body);
+          final List<Customer> customers = (data['data'] as List)
+              .map((json) => Customer.fromJson(json))
+              .toList();
+
+          return {
+            'customers': customers,
+            'meta': data['meta'],
+          };
+        } else {
+          throw Exception('Failed to load customers');
+        }
       }
+
+
+
     } catch (e) {
       throw Exception('Error: $e');
     }

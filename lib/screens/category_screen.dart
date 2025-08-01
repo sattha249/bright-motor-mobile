@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:brightmotor_store/components/product_tile.dart';
 import 'package:brightmotor_store/models/customer.dart';
 import 'package:brightmotor_store/providers/product_provider.dart';
+import 'package:brightmotor_store/screens/product/product_search_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -25,6 +28,16 @@ class CategoryScreen extends HookConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Products by Category'),
+        actions: [
+          IconButton(onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ProductSearchScreen(cartVisible: true, customer: customer,),
+              ),
+            );
+          }, icon: Icon(Icons.search))
+        ],
       ),
       body: Column(
         children: [
