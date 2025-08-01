@@ -130,7 +130,7 @@ class HomeScreen extends ConsumerWidget {
                       ),
                       GestureDetector(
                         onTap: () {
-                          Navigator.push(context, MaterialPageRoute(builder: (context) => PrinterPage()));
+                          Navigator.of(context).push(MaterialPageRoute(builder: (context) => PrinterPage()));
                         },
                         child: Card(
                           child: Center(
