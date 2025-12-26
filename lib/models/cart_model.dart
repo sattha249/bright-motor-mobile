@@ -1,52 +1,41 @@
-import 'product_model.dart';
+import 'package:brightmotor_store/models/product_model.dart';
 
 class CartItem {
   final Product product;
   int quantity;
+  double discountValue; // [แก้ไข] เก็บค่าส่วนลดเป็นตัวเลข (ต่อชิ้น)
+  bool isPaid;
 
   CartItem({
     required this.product,
     this.quantity = 1,
+    this.discountValue = 0.0,
+    this.isPaid = false,
   });
 
-  double get totalPrice => double.parse(product.sellPrice) * quantity;
+  double get price => double.tryParse(product.sellPrice) ?? 0.0;
+
+  // ส่วนลดต่อชิ้น (ดึงจากตัวแปรตรงๆ)
+  double get discountAmount => discountValue;
+
+  // ราคาขายจริงต่อชิ้น (ราคาตั้ง - ส่วนลด)
+  double get soldPrice => price - discountAmount;
+
+  double get totalSoldPrice => soldPrice * quantity;
+  
+  double get totalDiscount => discountAmount * quantity;
+
+  CartItem copyWith({
+    Product? product,
+    int? quantity,
+    double? discountValue,
+    bool? isPaid,
+  }) {
+    return CartItem(
+      product: product ?? this.product,
+      quantity: quantity ?? this.quantity,
+      discountValue: discountValue ?? this.discountValue,
+      isPaid: isPaid ?? this.isPaid,
+    );
+  }
 }
-
-class Cart {
-  final List<CartItem> _items = [];
-
-  List<CartItem> get items => List.unmodifiable(_items);
-
-  int get itemCount => _items.fold(0, (sum, item) => sum + item.quantity);
-
-  double get totalAmount => _items.fold(0, (sum, item) => sum + item.totalPrice);
-
-  void addItem(Product product) {
-    final existingIndex = _items.indexWhere((item) => item.product.id == product.id);
-    
-    if (existingIndex >= 0) {
-      _items[existingIndex].quantity += 1;
-    } else {
-      _items.add(CartItem(product: product));
-    }
-  }
-
-  void removeItem(int productId) {
-    _items.removeWhere((item) => item.product.id == productId);
-  }
-
-  void updateQuantity(int productId, int quantity) {
-    final index = _items.indexWhere((item) => item.product.id == productId);
-    if (index >= 0) {
-      if (quantity > 0) {
-        _items[index].quantity = quantity;
-      } else {
-        _items.removeAt(index);
-      }
-    }
-  }
-
-  void clear() {
-    _items.clear();
-  }
-} 

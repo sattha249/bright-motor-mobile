@@ -1,150 +1,91 @@
 import 'package:brightmotor_store/models/customer.dart';
 import 'package:brightmotor_store/providers/cart_provider.dart';
-import 'package:brightmotor_store/providers/product_provider.dart';
 import 'package:brightmotor_store/providers/truck_provider.dart';
 import 'package:brightmotor_store/screens/complete_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
-enum PaymentMethod {
-  cash,
-  weeklyCredit,
-  monthlyCredit;
-
-  String get title {
-    switch (this) {
-      case PaymentMethod.cash:
-        return "Cash";
-      case PaymentMethod.weeklyCredit:
-        return "Weekly Credit";
-      case PaymentMethod.monthlyCredit:
-        return "Monthly Credit";
-    }
-  }
-}
-
-String priceToString(double price) {
-  return price.toStringAsFixed(2);
-}
-
-class CheckoutScreen extends HookConsumerWidget {
+class CheckoutScreen extends ConsumerWidget {
   final Customer customer;
 
   const CheckoutScreen({super.key, required this.customer});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final truckId = ref.watch(currentTruckIdProvider);
-    final carts = ref.watch(cartWithQuantityProvider);
-    final totalPrice = ref.watch(cartTotalPriceProvider);
-    final currentPaymentMethod = useState(PaymentMethod.cash);
+    final truck = ref.watch(currentTruckProvider);
+    // [แก้ไข] ใช้ cartProvider แบบใหม่ (List<CartItem>)
+    final cartItems = ref.watch(cartProvider);
+    final totalAmount = ref.watch(cartGrandTotalProvider);
+    
+    // [แก้ไข] ใช้ PaymentTerm จาก Provider
+    final paymentTerm = ref.watch(paymentTermProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('ชำระเงิน'),
-      ),
+      appBar: AppBar(title: const Text('ชำระเงิน')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: CustomScrollView(
           slivers: [
+            // --- รายการสินค้า ---
             SliverToBoxAdapter(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    "รายการ",
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleLarge
-                        ?.copyWith(fontWeight: FontWeight.bold),
-                  ),
+                  Text("รายการสินค้า", style: Theme.of(context).textTheme.titleLarge),
                   const SizedBox(height: 16),
                   Card(
                     child: Padding(
-                      padding: const EdgeInsets.only(top: 16),
+                      padding: const EdgeInsets.all(8.0),
                       child: Column(
                         children: [
-                          ListView.builder(
-                            shrinkWrap: true,
-                            padding: EdgeInsets.zero,
-                            itemBuilder: (context, index) {
-                              final product = carts.keys.elementAt(index);
-                              final quantity = carts.values.elementAt(index);
-                              return ListTile(
-                                title: Text("${product.description} x$quantity",
-                                    style:
-                                        Theme.of(context).textTheme.bodyMedium),
-                                trailing: Text(
-                                  priceToString(
-                                      double.parse(product.sellPrice) *
-                                          quantity),
-                                  style: Theme.of(context).textTheme.bodyMedium,
-                                ),
-                                minTileHeight: 36,
-                              );
-                            },
-                            itemCount: carts.length,
-                          ),
+                          ...cartItems.map((item) => ListTile(
+                            title: Text("${item.product.description} x${item.quantity}"),
+                            subtitle: item.useDiscount ? const Text("ส่วนลด 10%", style: TextStyle(color: Colors.green, fontSize: 12)) : null,
+                            trailing: Text("฿${item.totalSoldPrice.toStringAsFixed(2)}"),
+                          )),
+                          const Divider(),
                           ListTile(
-                            title: Text(
-                              "ยอดรวม",
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodyLarge
-                                  ?.copyWith(fontWeight: FontWeight.bold),
+                            title: const Text("ยอดรวมสุทธิ", style: TextStyle(fontWeight: FontWeight.bold)),
+                            trailing: Text(
+                              "฿${totalAmount.toStringAsFixed(2)}",
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.blue),
                             ),
-                            trailing: Text(totalPrice,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodyLarge
-                                    ?.copyWith(fontWeight: FontWeight.bold)),
                           )
                         ],
                       ),
                     ),
-                  )
+                  ),
                 ],
               ),
             ),
+
+            // --- เลือกช่องทางการชำระเงิน ---
             SliverPadding(
-              padding: const EdgeInsets.only(top: 16),
+              padding: const EdgeInsets.only(top: 24),
               sliver: SliverToBoxAdapter(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      "เลือกช่องทางการชำระเงิน",
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleLarge
-                          ?.copyWith(fontWeight: FontWeight.bold),
-                    ),
+                    Text("ช่องทางการชำระเงิน", style: Theme.of(context).textTheme.titleLarge),
                     const SizedBox(height: 16),
-                    Column(
-                      children: [
-                        PaymentMethodListTile(
-                          paymentMethod: PaymentMethod.cash,
-                          selected:
-                              currentPaymentMethod.value == PaymentMethod.cash,
-                          onTap: (value) => currentPaymentMethod.value = value,
-                        ),
-                        PaymentMethodListTile(
-                          contentPadding: EdgeInsets.only(top: 16),
-                          paymentMethod: PaymentMethod.weeklyCredit,
-                          selected: currentPaymentMethod.value ==
-                              PaymentMethod.weeklyCredit,
-                          onTap: (value) => currentPaymentMethod.value = value,
-                        ),
-                        PaymentMethodListTile(
-                          contentPadding: EdgeInsets.only(top: 16),
-                          paymentMethod: PaymentMethod.monthlyCredit,
-                          selected: currentPaymentMethod.value ==
-                              PaymentMethod.monthlyCredit,
-                          onTap: (value) => currentPaymentMethod.value = value,
-                        ),
-                      ],
-                    )
+                    _PaymentOption(
+                      title: "เงินสด",
+                      value: PaymentTerm.cash,
+                      groupValue: paymentTerm,
+                      onChanged: (val) => ref.read(paymentTermProvider.notifier).state = val!,
+                    ),
+                    _PaymentOption(
+                      title: "เครดิตรายสัปดาห์",
+                      value: PaymentTerm.weekly,
+                      groupValue: paymentTerm,
+                      onChanged: (val) => ref.read(paymentTermProvider.notifier).state = val!,
+                    ),
+                    _PaymentOption(
+                      title: "เครดิตรายเดือน",
+                      value: PaymentTerm.monthly,
+                      groupValue: paymentTerm,
+                      onChanged: (val) => ref.read(paymentTermProvider.notifier).state = val!,
+                    ),
                   ],
                 ),
               ),
@@ -152,69 +93,66 @@ class CheckoutScreen extends HookConsumerWidget {
           ],
         ),
       ),
-      bottomNavigationBar: Container(
-        padding: const EdgeInsets.all(16)
-            .copyWith(bottom: MediaQuery.of(context).viewPadding.bottom),
-        child: ElevatedButton(
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              backgroundColor: Colors.green,
+            ),
             onPressed: () async {
+              if (truck == null || truck.truckId == null) {
+                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("ไม่พบข้อมูลรถ")));
+                 return;
+              }
 
-          if (truckId == null) return;
-          final customerId = customer.id;
-          final isCredit = currentPaymentMethod.value != PaymentMethod.cash;
-          final items = carts;
-
-          try {
-            await ref.read(cartProvider.notifier).submit(truckId, customerId, isCredit, items);
-            await launchCheckoutCompleteScreen(context);
-            Navigator.of(context).popUntil((route) => route.isFirst);
-          } catch (e, stacktrace) {
-            print(stacktrace);
-          }
-
-        }, child: Text("ชำระเงิน")),
+              try {
+                // [แก้ไข] เรียก submit แบบใหม่ (ไม่ต้องส่ง isCredit หรือ items เองแล้ว)
+                await ref.read(cartProvider.notifier).submit(
+                  truckId: truck.truckId!,
+                  customerId: customer.id,
+                );
+                
+                if (context.mounted) {
+                  // ส่ง cartItems ไปให้หน้า Complete (ก่อนจะถูก clear)
+                  await launchCheckoutCompleteScreen(context, cartItems); 
+                  ref.read(cartProvider.notifier).clear(); // ล้างตะกร้าหลังจบ
+                  Navigator.of(context).popUntil((route) => route.isFirst);
+                }
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+              }
+            },
+            child: const Text("ยืนยันการชำระเงิน", style: TextStyle(fontSize: 18, color: Colors.white)),
+          ),
+        ),
       ),
     );
   }
 }
 
-class PaymentMethodListTile extends StatelessWidget {
-  final bool selected;
-  final PaymentMethod paymentMethod;
-  final Function(PaymentMethod)? onTap;
-  final EdgeInsets? contentPadding;
+class _PaymentOption extends StatelessWidget {
+  final String title;
+  final PaymentTerm value;
+  final PaymentTerm groupValue;
+  final Function(PaymentTerm?) onChanged;
 
-  const PaymentMethodListTile({
-    super.key,
-    required this.paymentMethod,
-    required this.selected,
-    this.onTap,
-    this.contentPadding,
+  const _PaymentOption({
+    required this.title,
+    required this.value,
+    required this.groupValue,
+    required this.onChanged,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: contentPadding ?? EdgeInsets.zero,
-      child: ListTile(
-        onTap: () {
-          onTap?.call(paymentMethod);
-        },
-        selected: selected,
-        title: Text(
-          paymentMethod.title,
-          style: Theme.of(context)
-              .textTheme
-              .bodyLarge
-              ?.copyWith(fontWeight: FontWeight.bold),
-        ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-          side: BorderSide(
-            color: selected ? Colors.blue : Colors.grey,
-            width: 2,
-          ),
-        ),
-      ),
+    return RadioListTile<PaymentTerm>(
+      title: Text(title),
+      value: value,
+      groupValue: groupValue,
+      onChanged: onChanged,
+      activeColor: Colors.blue,
     );
   }
 }

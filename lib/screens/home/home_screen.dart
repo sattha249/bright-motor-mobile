@@ -6,8 +6,8 @@ import 'package:brightmotor_store/screens/product/product_screen.dart';
 import 'package:brightmotor_store/screens/truck_stock_screen.dart';
 import 'package:brightmotor_store/screens/product/product_search_screen.dart';
 import 'package:brightmotor_store/services/session_preferences.dart';
-import 'package:brightmotor_store/screens/pre_order_screen.dart'; // Import หน้าใหม่
-import 'package:brightmotor_store/screens/sync_data_screen.dart'; // Import หน้าใหม่
+import 'package:brightmotor_store/screens/pre_order_screen.dart';
+import 'package:brightmotor_store/screens/sync_data_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
