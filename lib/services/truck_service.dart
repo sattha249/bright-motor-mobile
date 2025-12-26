@@ -1,4 +1,3 @@
-
 import 'dart:convert';
 
 import 'package:brightmotor_store/main.dart';
@@ -15,7 +14,6 @@ final truckServiceProvider = Provider.autoDispose<TruckService>((ref) {
 });
 
 class TruckService {
-
   final String endpoint;
   final SessionPreferences preferences;
 
@@ -40,13 +38,16 @@ class TruckService {
     }
   }
 
-  Future<TruckResponse> getTruckStocks(int truckId) async {
+  // [แก้ไข] เพิ่ม page และ limit (default ไว้ที่ 20)
+  Future<TruckResponse> getTruckStocks(int truckId, {int page = 1, int limit = 20}) async {
     try {
       final token = await preferences.getToken();
 
+      // [แก้ไข] ส่ง Query Param page และ limit ไปแทน hardcode perPage=50
+      final url = "$endpoint/trucks/$truckId/stocks?page=$page&limit=$limit";
 
       final response = await defaultHttpClient().get(
-        Uri.parse("$endpoint/trucks/$truckId/stocks?perPage=50"),
+        Uri.parse(url),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -54,14 +55,14 @@ class TruckService {
       );
 
       if (response.statusCode == 200) {
+        print('Truck stocks response: ${response.body}');
         return TruckResponse.fromJson(jsonDecode(response.body));
       } else {
         throw Exception('Failed to load products: ${response.body}');
       }
     } catch (e) {
+      print('Error fetching truck stocks: $e');
       throw Exception('Error fetching products: $e');
     }
   }
-
-
 }

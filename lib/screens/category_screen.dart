@@ -21,13 +21,14 @@ class CategoryScreen extends HookConsumerWidget {
     final truckId = ref.watch(currentTruckIdProvider);
     final itemCount = ref.watch(cartItemCountProvider);
     final selectedCategory = useState<String?>("ทั้งหมด");
+    ref.watch(productsProvider);
     final products = ref.watch(productByCategoriesProvider(
         ProductCategoryParams(
             truckId: truckId, category: selectedCategory.value)));
     final categories = ref.watch(productCategoriesProvider);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Products by Category'),
+        title: const Text('สินค้า'),
         actions: [
           IconButton(onPressed: () {
             Navigator.push(

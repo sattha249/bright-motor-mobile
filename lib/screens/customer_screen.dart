@@ -75,7 +75,7 @@ class _CustomerScreenState extends State<CustomerScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Customers'),
+        title: const Text('เลือกลูกค้า'),
       ),
       body: Column(
         children: [
@@ -84,7 +84,7 @@ class _CustomerScreenState extends State<CustomerScreen> {
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
-                hintText: 'Search customers...',
+                hintText: 'ค้นหาลูกค้า',
                 prefixIcon: Icon(Icons.search),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8.0),

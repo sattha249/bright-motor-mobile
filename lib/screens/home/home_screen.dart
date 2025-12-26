@@ -3,8 +3,11 @@ import 'package:brightmotor_store/screens/customer_screen.dart';
 import 'package:brightmotor_store/screens/login_screen.dart';
 import 'package:brightmotor_store/screens/printer/printer_page.dart';
 import 'package:brightmotor_store/screens/product/product_screen.dart';
+import 'package:brightmotor_store/screens/truck_stock_screen.dart';
 import 'package:brightmotor_store/screens/product/product_search_screen.dart';
 import 'package:brightmotor_store/services/session_preferences.dart';
+import 'package:brightmotor_store/screens/pre_order_screen.dart'; // Import หน้าใหม่
+import 'package:brightmotor_store/screens/sync_data_screen.dart'; // Import หน้าใหม่
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
@@ -17,7 +20,7 @@ class HomeScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Welcome ${truck?.fullName ?? '-'}'),
+        title: Text('สวัสดี ${truck?.fullName ?? '-'}'),
         centerTitle: false,
         actions: [
           IconButton(
@@ -63,7 +66,7 @@ class HomeScreen extends ConsumerWidget {
                 children: [
                   Padding(
                     padding: const EdgeInsets.only(bottom: 16.0),
-                    child: Text("Select Menu",
+                    child: Text("เมนูหลัก",
                         style: Theme.of(context)
                             .textTheme
                             .headlineMedium
@@ -103,9 +106,9 @@ class HomeScreen extends ConsumerWidget {
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.shopping_cart, size: 48),
+                                Icon(Icons.shopping_cart, size: 48, color: Colors.blue),
                                 SizedBox(height: 8),
-                                Text("Open Order", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                                Text("เปิดคำสั่งซื้อ", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                               ],
                             ),
                           ),
@@ -113,16 +116,56 @@ class HomeScreen extends ConsumerWidget {
                       ),
                       GestureDetector(
                         onTap: () {
-                          Navigator.of(context).push(MaterialPageRoute(builder: (context) => ProductSearchScreen()));
+                          Navigator.of(context).push(MaterialPageRoute(builder: (context) => TruckStockScreen()));
                         },
                         child: Card(
                           child: Center(
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.list_alt, size: 48),
+                                Icon(Icons.list_alt, size: 48, color: Colors.green),
                                 SizedBox(height: 8),
-                                Text("Products", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                                Text("สินค้าในรถ", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.of(context).push(MaterialPageRoute(
+                              builder: (context) => const PreOrderScreen()));
+                        },
+                        child: const Card(
+                          child: Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.access_time_filled, size: 48, color: Colors.orange), // ใส่สีให้เด่น
+                                SizedBox(height: 8),
+                                Text("คำสั่งซื้อล่วงหน้า",
+                                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      // 4. [ใหม่] อัพเดทข้อมูล (Sync)
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.of(context).push(MaterialPageRoute(
+                              builder: (context) => const SyncDataScreen()));
+                        },
+                        child: const Card(
+                          child: Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.sync, size: 48, color: Colors.blue), // ใส่สีให้เด่น
+                                SizedBox(height: 8),
+                                Text("อัพเดทข้อมูล",
+                                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                               ],
                             ),
                           ),
@@ -139,7 +182,7 @@ class HomeScreen extends ConsumerWidget {
                               children: [
                                 Icon(Icons.print, size: 48),
                                 SizedBox(height: 8),
-                                Text("Printer Setting", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                                Text("ตั้งค่าเครื่องพิมพ์", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                               ],
                             ),
                           ),
