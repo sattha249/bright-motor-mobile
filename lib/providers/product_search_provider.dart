@@ -70,14 +70,15 @@ class ProductSearchNotifier extends StateNotifier<List<Product>> {
       // เรียก Service หน้าถัดไป
       final response = await _service.search(_currentQuery, page: nextPage, limit: 20);
 
-      if (response.data.isEmpty) {
+      final newData = response.data; // ถ้ามันไม่ null อยู่แล้วก็ใช้ได้เลย
+
+      if (newData.isEmpty) {
         _hasMore = false;
       } else {
         _page = nextPage;
-        // เอาข้อมูลใหม่มาต่อท้ายข้อมูลเดิม (Append)
-        state = [...state, ...response.data]; 
+        state = [...state, ...newData]; // Spread operator
         
-        if (response.data.length < 20) {
+        if (newData.length < 20) {
           _hasMore = false;
         }
       }

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:brightmotor_store/components/product_tile.dart';
 import 'package:brightmotor_store/models/customer.dart';
+import 'package:brightmotor_store/models/product_model.dart';
 import 'package:brightmotor_store/providers/product_provider.dart';
 import 'package:brightmotor_store/screens/product/product_search_screen.dart';
 import 'package:flutter/material.dart';
@@ -21,11 +22,15 @@ class CategoryScreen extends HookConsumerWidget {
     final truckId = ref.watch(currentTruckIdProvider);
     final itemCount = ref.watch(cartItemCountProvider);
     final selectedCategory = useState<String?>("ทั้งหมด");
+    
+    // เรียกให้ Provider ทำงาน
     ref.watch(productsProvider);
+    
     final products = ref.watch(productByCategoriesProvider(
         ProductCategoryParams(
             truckId: truckId, category: selectedCategory.value)));
     final categories = ref.watch(productCategoriesProvider);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('สินค้า'),
@@ -37,7 +42,7 @@ class CategoryScreen extends HookConsumerWidget {
                 builder: (context) => ProductSearchScreen(cartVisible: true, customer: customer,),
               ),
             );
-          }, icon: Icon(Icons.search))
+          }, icon: const Icon(Icons.search))
         ],
       ),
       body: Column(
@@ -75,6 +80,30 @@ class CategoryScreen extends HookConsumerWidget {
                 return ProductTile(
                   product: product,
                   onAction: (product) {
+                    // --- Logic เช็คสต็อก ---
+                    
+                    // 1. ดึงของในตะกร้า
+                    final currentCartItems = ref.read(cartProvider);
+                    
+                    // 2. นับจำนวนสินค้านี้ที่หยิบไปแล้ว
+                    // (เนื่องจาก List<Product> ใน cart อาจมีสินค้าตัวเดิมซ้ำๆ กันหลาย row หรือเป็นตัวเดียวกัน)
+                    // ถ้าโครงสร้าง cart เป็น List<Product> (เพิ่มทีละชิ้น) ให้ใช้วิธีนี้:
+                    final countInCart = currentCartItems.where((p) => p.id == product.id).length;
+                    
+                    // 3. เช็คกับจำนวนที่มีจริง (product.quantity ที่เราเพิ่งเพิ่มใน model)
+                    if (countInCart + 1 > product.quantity) {
+                        ScaffoldMessenger.of(context).clearSnackBars();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                                content: Text('สินค้าหมด! มีเพียง ${product.quantity} ${product.unit}'),
+                                backgroundColor: Colors.red,
+                                duration: const Duration(seconds: 1),
+                            )
+                        );
+                        return;
+                    }
+
+                    // 4. ถ้าผ่าน ก็เพิ่มลงตะกร้า
                     ref.read(cartProvider.notifier).addItem(product);
                   },
                 );
