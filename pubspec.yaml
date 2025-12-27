@@ -46,6 +46,7 @@ dependencies:
     git:
       url: https://github.com/ahmadfathan/blue_thermal_printer
   intl: ^0.20.2
+  path_provider: ^2.0.15
 
 dev_dependencies:
   flutter_test:

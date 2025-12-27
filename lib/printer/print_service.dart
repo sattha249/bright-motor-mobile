@@ -1,5 +1,7 @@
 import 'package:blue_thermal_printer/blue_thermal_printer.dart';
 import 'package:brightmotor_store/models/cart_model.dart'; // [แก้ไข] ใช้ CartItem แทน Product Model เดิม
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
 
 class PrintService {
   final BlueThermalPrinter bluetooth = BlueThermalPrinter.instance;
@@ -75,8 +77,36 @@ class PrintService {
       bluetooth.printNewLine();
       bluetooth.printCustom("Thank You!", 2, 1);
       bluetooth.printNewLine();
+
+      await _printQrCodeIfExists();
+      bluetooth.printNewLine();
       bluetooth.printNewLine();
       bluetooth.paperCut(); 
+    }
+  }
+
+  Future<void> _printQrCodeIfExists() async {
+    try {
+      final directory = await getApplicationDocumentsDirectory();
+      final path = '${directory.path}/receipt_qrcode.png';
+      final file = File(path);
+
+      if (await file.exists()) {
+        // อ่านไฟล์รูปเป็น Bytes
+        final imageBytes = await file.readAsBytes();
+        
+        bluetooth.printNewLine();
+        bluetooth.printCustom("Scan to Pay", 1, 1); // ข้อความกำกับ
+        
+        // สั่งปริ้นรูป (คำสั่งนี้จะแปลงภาพเป็นขาวดำให้อัตโนมัติในระดับ Driver)
+        // param 2: alignment (1 = center)
+        bluetooth.printImageBytes(imageBytes); 
+        
+        bluetooth.printNewLine();
+      }
+    } catch (e) {
+      print("Error printing QR Code: $e");
+      // ไม่ต้อง throw error ปล่อยผ่านไปถ้ารูปมีปัญหา ใบเสร็จจะได้ออก
     }
   }
 
