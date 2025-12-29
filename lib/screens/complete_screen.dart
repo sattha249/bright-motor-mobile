@@ -51,6 +51,7 @@ class CompleteScreen extends ConsumerWidget {
                 const SizedBox(width: 16),
                 ElevatedButton.icon(
                   onPressed: () {
+                    PrintService().printReceipt(context, items);
                     // [แก้ไข] ส่ง items ไปพิมพ์ (PrintService ต้องรองรับ List<CartItem>)
                     // PrintService().printReceipt(items); 
                     
