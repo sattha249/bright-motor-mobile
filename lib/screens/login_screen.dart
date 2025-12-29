@@ -68,7 +68,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ),
               const SizedBox(height: 16),
               Text(
-                'Current Input: $_currentUsername / $_currentPassword',
+                'Bright Motor Store App v1.0.0',
                 style: const TextStyle(
                   color: Colors.grey,
                   fontSize: 12,
