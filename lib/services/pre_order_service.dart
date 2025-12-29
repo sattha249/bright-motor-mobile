@@ -12,6 +12,8 @@ final preOrderServiceProvider = Provider.autoDispose<PreOrderService>((ref) {
 abstract class PreOrderService {
   Future<Map<String, dynamic>> getPreOrders({required int truckId, int page = 1});
   Future<PreOrder> getPreOrderDetail(int id);
+  Future<void> confirmPreOrder(int id);
+  Future<Map<String, dynamic>> getPreOrderRaw(int id);
 }
 
 class PreOrderServiceImpl implements PreOrderService {
@@ -74,6 +76,48 @@ class PreOrderServiceImpl implements PreOrderService {
       }
     } catch (e) {
       throw Exception('Error: $e');
+    }
+  }
+
+  @override
+  Future<void> confirmPreOrder(int id) async {
+    try {
+      final token = await preferences.getToken();
+      final url = '$baseUrl/pre-orders/$id/confirm';
+      final response = await defaultHttpClient().post(
+        Uri.parse(url),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+      );
+
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        throw Exception('Failed to confirm: ${response.body}');
+      }
+    } catch (e) {
+      throw Exception('Error confirming: $e');
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> getPreOrderRaw(int id) async {
+    try {
+      final token = await preferences.getToken();
+      final url = '$baseUrl/pre-orders/$id';
+      final response = await defaultHttpClient().get(
+        Uri.parse(url),
+        headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
+      );
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body) as Map<String, dynamic>;
+      } else {
+        throw Exception('Failed to load raw data: ${response.body}');
+      }
+    } catch (e) {
+      throw Exception('Error getting raw data: $e');
     }
   }
 }

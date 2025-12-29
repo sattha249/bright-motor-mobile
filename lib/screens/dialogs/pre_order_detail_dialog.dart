@@ -1,21 +1,32 @@
+import 'package:brightmotor_store/models/cart_model.dart';
 import 'package:brightmotor_store/models/pre_order_model.dart';
+import 'package:brightmotor_store/models/product_model.dart';
+import 'package:brightmotor_store/screens/complete_screen.dart';
 import 'package:brightmotor_store/services/pre_order_service.dart';
+import 'package:brightmotor_store/services/sell_service.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
-class PreOrderDetailDialog extends ConsumerWidget {
+class PreOrderDetailDialog extends ConsumerStatefulWidget {
   final int preOrderId;
 
   const PreOrderDetailDialog({super.key, required this.preOrderId});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<PreOrderDetailDialog> createState() => _PreOrderDetailDialogState();
+}
+
+class _PreOrderDetailDialogState extends ConsumerState<PreOrderDetailDialog> {
+  bool isProcessing = false;
+
+  @override
+  Widget build(BuildContext context) {
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
-        constraints: const BoxConstraints(maxHeight: 600), // จำกัดความสูง
+        constraints: const BoxConstraints(maxHeight: 600),
         child: FutureBuilder<PreOrder>(
-          future: ref.read(preOrderServiceProvider).getPreOrderDetail(preOrderId),
+          future: ref.read(preOrderServiceProvider).getPreOrderDetail(widget.preOrderId),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const SizedBox(
@@ -41,6 +52,7 @@ class PreOrderDetailDialog extends ConsumerWidget {
             }
 
             final order = snapshot.data!;
+            final canConfirm = order.status == 'Pending';
 
             return Column(
               mainAxisSize: MainAxisSize.min,
@@ -59,21 +71,21 @@ class PreOrderDetailDialog extends ConsumerWidget {
                 ),
                 const Divider(height: 1),
 
-                // Content (Scrollable)
+                // Content
                 Flexible(
                   child: ListView(
                     padding: const EdgeInsets.all(16),
                     shrinkWrap: true,
                     children: [
                       _buildInfoRow("เลขที่บิล", order.billNo),
-                      _buildInfoRow("ลูกค้า", order.customer.name),
-                      _buildInfoRow("เบอร์โทร", order.customer.tel),
+                      _buildInfoRow("ลูกค้า", _safeGetCustomerName(order)),
                       _buildInfoRow("สถานะ", order.status),
+                      _buildInfoRow("ยอดรวม", "฿${order.totalSoldPrice}"),
+                      
                       const SizedBox(height: 16),
                       const Text("รายการสินค้า:", style: TextStyle(fontWeight: FontWeight.bold)),
                       const SizedBox(height: 8),
                       
-                      // List of Items
                       if (order.items.isEmpty)
                         const Text("- ไม่พบรายการสินค้า -", style: TextStyle(color: Colors.grey)),
                       
@@ -82,50 +94,41 @@ class PreOrderDetailDialog extends ConsumerWidget {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Expanded(child: Text(item.productName, maxLines: 1, overflow: TextOverflow.ellipsis)),
+                            Expanded(child: Text(_safeGetProductName(item), maxLines: 1, overflow: TextOverflow.ellipsis)),
                             Text("x${item.quantity}"),
-                            const SizedBox(width: 16),
-                            Text("฿${item.total}", style: const TextStyle(fontWeight: FontWeight.bold)),
                           ],
                         ),
                       )),
-                      
-                      const Divider(height: 24),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text("ยอดรวมสุทธิ", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                          Text("฿${order.totalSoldPrice}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.blue)),
-                        ],
-                      ),
                     ],
                   ),
                 ),
 
-                // Actions Button
+                // Actions
                 Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: Row(
                     children: [
                       Expanded(
                         child: OutlinedButton(
-                          onPressed: () => Navigator.pop(context),
+                          onPressed: isProcessing ? null : () => Navigator.pop(context),
                           child: const Text("ปิด"),
                         ),
                       ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () {
-                            // TODO: Implement confirm logic here
-                            Navigator.pop(context);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text("ยืนยันรายการแล้ว")),
-                            );
-                          },
-                          child: const Text("ยืนยัน"),
+                      if (canConfirm) ...[
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green,
+                              foregroundColor: Colors.white,
+                            ),
+                            onPressed: isProcessing ? null : () => _handleConfirm(context, order.id, ref),
+                            child: isProcessing 
+                              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                              : const Text("ยืนยันรายการ"),
+                          ),
                         ),
-                      ),
+                      ]
                     ],
                   ),
                 )
@@ -135,6 +138,104 @@ class PreOrderDetailDialog extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  // --- Logic ยืนยันรายการ ---
+  Future<void> _handleConfirm(BuildContext context, int preOrderId, WidgetRef ref) async {
+    setState(() => isProcessing = true);
+
+    try {
+      // 1. Confirm Status
+      await ref.read(preOrderServiceProvider).confirmPreOrder(preOrderId);
+
+      // 2. Get Raw Data
+      final rawJson = await ref.read(preOrderServiceProvider).getPreOrderRaw(preOrderId);
+
+      // 3. Transform to Sell Log Payload
+      final sellLogPayload = {
+        "truckId": rawJson['truck_id'],
+        "customerId": rawJson['customer_id'],
+        "isCredit": (rawJson['is_credit'] == null || rawJson['is_credit'] == 'cash') ? 0 : 1,
+        "totalDiscount": rawJson['total_discount'].toString(),
+        "totalSoldPrice": rawJson['total_sold_price'].toString(),
+        "items": (rawJson['items'] as List).map((item) {
+          return {
+            "productId": item['product_id'],
+            "quantity": item['quantity'],
+            "price": double.tryParse(item['price'].toString()) ?? 0,
+            "discount": item['discount'].toString(),
+            "sold_price": item['sold_price'].toString(),
+            "is_paid": (item['is_paid'] == 1 || item['is_paid'] == true),
+          };
+        }).toList(),
+      };
+
+      // 4. Create Sell Log
+      await ref.read(sellServiceProvider).createSellLogFromPreOrder(sellLogPayload);
+
+      // 5. Prepare data for Print (Complete Screen)
+      final List<CartItem> cartItemsForPrint = (rawJson['items'] as List).map((item) {
+        final productData = item['product'] ?? {};
+        
+        // [แก้ไขให้ตรงกับ Model Product]
+        // 1. ตัด productCode/code ทิ้ง เพราะไม่มีใน Model
+        // 2. costPrice/sellPrice ต้องเป็น String (ตาม Model)
+        final product = Product(
+          id: item['product_id'],
+          
+          description: productData['description'] ?? 'สินค้า',
+          brand: productData['brand'] ?? '',
+          model: productData['model'] ?? '',
+          category: productData['category'] ?? '',
+          unit: productData['unit'] ?? '',
+          
+          // แปลงเป็น String ตาม Model
+          costPrice: (productData['cost_price'] ?? '0').toString(), 
+          sellPrice: (item['sold_price'] ?? '0').toString(), 
+          
+          quantity: 0
+        );
+
+        // CartItem ยังต้องการค่า discountValue เป็น double
+        return CartItem(
+          product: product,
+          quantity: item['quantity'],
+          discountValue: double.tryParse(item['discount'].toString()) ?? 0.0,
+        );
+      }).toList();
+
+      if (mounted) {
+        Navigator.pop(context); // ปิด Dialog
+        
+        // ไปหน้า Complete Screen
+        await launchCheckoutCompleteScreen(
+          context, 
+          cartItemsForPrint
+        );
+      }
+
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("เกิดข้อผิดพลาด: $e"), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => isProcessing = false);
+    }
+  }
+
+  // Helper Functions
+  String _safeGetCustomerName(dynamic order) {
+    try { return order.customer.name; } catch (_) { 
+      try { return order.customerName; } catch (__) { return "-"; }
+    }
+  }
+
+  String _safeGetProductName(dynamic item) {
+    try { return item.productName; } catch (_) { 
+      try { return item.product.description; } catch (__) { return "-"; }
+    }
   }
 
   Widget _buildInfoRow(String label, String value) {

@@ -18,13 +18,11 @@ abstract class SellService {
     required PaymentTerm paymentTerm,
     required List<CartItem> items,
   });
+  Future<void> createSellLogFromPreOrder(Map<String, dynamic> payload);
 }
 
 class SellServiceImpl implements SellService {
-  // [แก้ไข] สร้าง Instance เองตรงนี้
   final SessionPreferences preferences = SessionPreferences();
-  
-  // [แก้ไข] อ่าน URL จาก .env ตรงนี้เลย (ไม่ต้องรอ Provider)
   String get baseUrl => dotenv.env['API_URL'] ?? 'http://10.0.2.2:3333';
 
   SellServiceImpl();
@@ -91,6 +89,29 @@ class SellServiceImpl implements SellService {
 
     if (response.statusCode != 200 && response.statusCode != 201) {
       throw Exception('Failed to submit order: ${response.body}');
+    }
+  }
+
+  @override
+  Future<void> createSellLogFromPreOrder(Map<String, dynamic> payload) async {
+    try {
+      final token = await preferences.getToken();
+      final url = '$baseUrl/sell-logs';
+
+      final response = await defaultHttpClient().post(
+        Uri.parse(url),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(payload),
+      );
+
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        throw Exception('Failed to create sell log: ${response.body}');
+      }
+    } catch (e) {
+      throw Exception('Error creating sell log: $e');
     }
   }
 }
