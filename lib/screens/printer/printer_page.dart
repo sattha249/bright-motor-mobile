@@ -4,6 +4,7 @@ import 'package:brightmotor_store/providers/printer_provider.dart'; // อย่
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:brightmotor_store/utils/preferences.dart';
 
 class PrinterPage extends ConsumerStatefulWidget {
   const PrinterPage({super.key});
@@ -15,6 +16,7 @@ class PrinterPage extends ConsumerStatefulWidget {
 class _PrinterPageState extends ConsumerState<PrinterPage> {
   BlueThermalPrinter bluetooth = BlueThermalPrinter.instance;
   List<BluetoothDevice> devices = [];
+  final Preferences preferences = Preferences();
 
   @override
   void initState() {
@@ -23,16 +25,46 @@ class _PrinterPageState extends ConsumerState<PrinterPage> {
   }
 
   Future<void> _initPrinter() async {
-    // 1. ดึงรายชื่ออุปกรณ์
+    // 1. ดึงรายชื่ออุปกรณ์ Bluetooth ทั้งหมดที่เคย Pair ไว้
     await _getDevices();
-    
-    // 2. เช็คสถานะจริงจาก Hardware ว่าต่ออยู่ไหม
-    bool? isConnected = await bluetooth.isConnected;
-    
-    // อัปเดตสถานะลง Provider
-    ref.read(isPrinterConnectedProvider.notifier).state = isConnected ?? false;
 
-    // 3. ฟังสถานะการเชื่อมต่อ (เผื่อหลุดเอง)
+    // 2. เช็คว่ามีค่าที่บันทึกไว้ไหม (Saved Printer)
+    final savedPrinter = await preferences.getSavedPrinter();
+
+    if (savedPrinter != null) {
+      final savedAddress = savedPrinter['address'];
+      
+      // ค้นหาใน list devices ว่ามีตัวที่ตรงกับ savedAddress ไหม
+      try {
+        final device = devices.firstWhere((d) => d.address == savedAddress);
+        
+        // ถ้าเจอ: เซ็ตค่าลง Provider เพื่อให้ Dropdown โชว์ชื่อ
+        ref.read(selectedPrinterProvider.notifier).state = device;
+
+        // 3. ลองเชื่อมต่ออัตโนมัติ (Auto Connect)
+        bool? isConnected = await bluetooth.isConnected;
+        if (isConnected != true) {
+          try {
+            await bluetooth.connect(device);
+            ref.read(isPrinterConnectedProvider.notifier).state = true;
+            print("Auto connected to ${device.name}");
+          } catch (e) {
+            print("Auto connect failed: $e");
+            // ถ้าต่อไม่ได้ (เช่น ปิดเครื่องปริ้นอยู่) ก็ไม่เป็นไร แค่ค้างชื่อไว้ใน Dropdown
+          }
+        } else {
+           ref.read(isPrinterConnectedProvider.notifier).state = true;
+        }
+      } catch (e) {
+        print("Saved printer not found in bonded devices");
+      }
+    } else {
+      // ถ้าไม่มีค่าบันทึก ก็เช็คสถานะปกติตามเดิม
+      bool? isConnected = await bluetooth.isConnected;
+      ref.read(isPrinterConnectedProvider.notifier).state = isConnected ?? false;
+    }
+
+    // 4. Listener เดิม (เผื่อหลุดเอง)
     bluetooth.onStateChanged().listen((state) {
       if (mounted) {
         if (state == BlueThermalPrinter.CONNECTED) {
@@ -43,7 +75,6 @@ class _PrinterPageState extends ConsumerState<PrinterPage> {
       }
     });
   }
-
   Future<void> _getDevices() async {
     try {
       List<BluetoothDevice> availableDevices = await bluetooth.getBondedDevices();
@@ -84,7 +115,7 @@ class _PrinterPageState extends ConsumerState<PrinterPage> {
       
       // อัปเดต Provider
       ref.read(isPrinterConnectedProvider.notifier).state = true;
-      
+      await preferences.savePrinter(selectedDevice.name ?? "", selectedDevice.address ?? "");
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Connected to ${selectedDevice.name}")),
       );
@@ -99,7 +130,7 @@ class _PrinterPageState extends ConsumerState<PrinterPage> {
   Future<void> _disconnectPrinter() async {
     await bluetooth.disconnect();
     ref.read(isPrinterConnectedProvider.notifier).state = false;
-    
+    await preferences.clearPrinter();
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text("Printer Disconnected")),
     );

@@ -13,7 +13,7 @@ class Customer {
   final DateTime? updatedAt;
 
   Customer({
-    required this.id,
+    this.id = 0, // for create new
     required this.customerNo,
     required this.name,
     required this.email,
@@ -42,5 +42,19 @@ class Customer {
       createdAt: json['created_at'] != null ? DateTime.parse(json['created_at']) : null,
       updatedAt: json['updated_at'] != null ? DateTime.parse(json['updated_at']) : null,
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'customer_no': customerNo,
+      'name': name,
+      'email': email,
+      'tel': tel,
+      'address': address,
+      'district': district,
+      'province': province,
+      'postCode': postCode,
+      'country': country,
+    };
   }
 } 
