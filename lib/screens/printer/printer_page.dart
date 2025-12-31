@@ -3,6 +3,8 @@ import 'package:brightmotor_store/printer/print_service.dart';
 import 'package:brightmotor_store/providers/printer_provider.dart'; // อย่าลืม import provider ที่สร้าง
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:brightmotor_store/models/cart_model.dart';
+import 'package:brightmotor_store/models/product_model.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:brightmotor_store/utils/preferences.dart';
 
@@ -17,6 +19,8 @@ class _PrinterPageState extends ConsumerState<PrinterPage> {
   BlueThermalPrinter bluetooth = BlueThermalPrinter.instance;
   List<BluetoothDevice> devices = [];
   final Preferences preferences = Preferences();
+  final TextEditingController _codePageController = TextEditingController(text: '22');
+  bool _isImageMode = false;
 
   @override
   void initState() {
@@ -27,6 +31,14 @@ class _PrinterPageState extends ConsumerState<PrinterPage> {
   Future<void> _initPrinter() async {
     // 1. ดึงรายชื่ออุปกรณ์ Bluetooth ทั้งหมดที่เคย Pair ไว้
     await _getDevices();
+
+    final savedCodePage = await preferences.getPrinterCodePage();
+    final savedImageMode = await preferences.getPrinterImageMode();
+
+    setState(() {
+      _codePageController.text = savedCodePage.toString();
+      _isImageMode = savedImageMode;
+    });
 
     // 2. เช็คว่ามีค่าที่บันทึกไว้ไหม (Saved Printer)
     final savedPrinter = await preferences.getSavedPrinter();
@@ -136,19 +148,38 @@ class _PrinterPageState extends ConsumerState<PrinterPage> {
     );
   }
 
+  Future<void> _saveCodePage() async {
+    final code = int.tryParse(_codePageController.text) ?? 255;
+    await preferences.savePrinterCodePage(code);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Saved Code Page: $code")),
+      );
+      // Hide keyboard
+      FocusScope.of(context).unfocus();
+    }
+  }
+
+  Future<void> _toggleImageMode(bool value) async {
+    setState(() {
+      _isImageMode = value;
+    });
+    await preferences.savePrinterImageMode(value);
+  }
+
   @override
   Widget build(BuildContext context) {
-    // ดึงค่าจาก Provider
     final selectedDevice = ref.watch(selectedPrinterProvider);
     final isConnected = ref.watch(isPrinterConnectedProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text("Thermal Printer")),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
+            // ... (Icons, Status, Dropdown, Connect Buttons - same as before) ...
             Icon(Icons.print, size: 64, color: Theme.of(context).colorScheme.primary),
             const SizedBox(height: 16),
             Text(
@@ -157,8 +188,6 @@ class _PrinterPageState extends ConsumerState<PrinterPage> {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
-            
-            // Status Indicator
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -177,17 +206,13 @@ class _PrinterPageState extends ConsumerState<PrinterPage> {
                 ),
               ],
             ),
-            
             const SizedBox(height: 24),
-            
-            // Dropdown เลือก Printer
             DropdownButtonFormField<BluetoothDevice>(
               decoration: const InputDecoration(
                 labelText: "Select Printer",
                 border: OutlineInputBorder(),
               ),
               value: selectedDevice,
-              // [Logic 1 & 2] จำค่าจาก Provider และ ล็อคถ้า Connected
               items: devices.map((device) {
                 return DropdownMenuItem(
                   value: device,
@@ -195,54 +220,128 @@ class _PrinterPageState extends ConsumerState<PrinterPage> {
                 );
               }).toList(),
               onChanged: isConnected 
-                  ? null // ถ้าต่ออยู่ ให้เป็น null (Disabled/Locked)
+                  ? null 
                   : (device) {
-                      // ถ้ายังไม่ต่อ ให้เลือกได้ และอัปเดต Provider
                       ref.read(selectedPrinterProvider.notifier).state = device;
                     },
             ),
-            
             const SizedBox(height: 16),
-            
-            // ปุ่ม Connect / Disconnect
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 ElevatedButton.icon(
-                  // ถ้าต่ออยู่ ห้ามกด Connect ซ้ำ
                   onPressed: isConnected ? null : _connectToPrinter,
                   icon: const Icon(Icons.link),
                   label: const Text("Connect"),
                 ),
                 const SizedBox(width: 16),
                 ElevatedButton.icon(
-                  // ถ้ายังไม่ต่อ ห้ามกด Disconnect
                   onPressed: !isConnected ? null : _disconnectPrinter,
                   icon: const Icon(Icons.link_off),
                   label: const Text("Disconnect"),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.redAccent,
-                    foregroundColor: Colors.white, // สีตัวหนังสือ
+                    foregroundColor: Colors.white,
                   ),
                 ),
               ],
             ),
             
             const SizedBox(height: 24),
-            Divider(),
+            const Divider(),
+            
+            const SizedBox(height: 16),
+            Text(
+              "ตั้งค่าขั้นสูงสำหรับเครื่องพิมพ์",
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 10),
+            
+            // Code Page Input (Disable if Image Mode is ON to avoid confusion)
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _codePageController,
+                    keyboardType: TextInputType.number,
+                    enabled: !_isImageMode, // Disable when Image Mode is on
+                    decoration: InputDecoration(
+                      labelText: "รหัสภาษาไทย (e.g. 255, 22, 17)",
+                      border: const OutlineInputBorder(),
+                      helperText: _isImageMode 
+                          ? "ไม่ได้ใช้งานในโหมดรูปภาพ" 
+                          : "สำหรับโหมดข้อความ (Text Mode)",
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                ElevatedButton(
+                  onPressed: _isImageMode ? null : _saveCodePage,
+                  child: const Text("Save"),
+                ),
+              ],
+            ),
+            
             const SizedBox(height: 16),
             
-            // ปุ่ม Test Print
+            OutlinedButton.icon(
+              onPressed: (isConnected && !_isImageMode) 
+                  ? () => PrintService().findThaiCodePage(context)
+                  : null,
+              icon: const Icon(Icons.flag),
+              label: const Text("ทดสอบหาค่า Code Page ภาษาไทย"),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size.fromHeight(40),
+              ),
+            ),
+
+            const SizedBox(height: 16),
+            const Divider(),
+            
+            // [New] Image Mode Switch
+            SwitchListTile(
+              title: const Text("พิมพ์แบบรูปภาพ (Image Mode)"),
+              subtitle: const Text("ใช้เมื่อภาษาไทยพิมพ์ไม่ออก หรือต้องการฟอนต์สวยงาม (พิมพ์ช้ากว่าเล็กน้อย)"),
+              value: _isImageMode,
+              onChanged: _toggleImageMode,
+              activeColor: Theme.of(context).colorScheme.primary,
+            ),
+
+            const SizedBox(height: 16),
+            
             ElevatedButton.icon(
               onPressed: isConnected 
-                  ? () => PrintService().testPrinter() 
-                  : null, // ถ้าไม่ต่อ กดไม่ได้
+                  ? () => PrintService().printReceipt(context, [
+                      // Creating dummy items for test
+                      CartItem(
+                        product: Product(
+                          id: 999, 
+                          description: "ทดสอบสินค้า A", 
+                          sellPrice: "100.00", 
+                          category: "", brand: "", model: "", costPrice: "", unit: "",
+                        ),
+                        quantity: 1, 
+                        discountValue: 0.0
+                      ),
+                      CartItem(
+                        product: Product(
+                          id: 888, 
+                          description: "ทดสอบสินค้า B", 
+                          sellPrice: "50.00", 
+                          category: "", brand: "", model: "", costPrice: "", unit: "",
+                        ),
+                        quantity: 2, 
+                        discountValue: 0.0
+                      ),
+                    ], customerName: "ลูกค้าทดสอบ")
+                  : null, 
               icon: const Icon(Icons.receipt_long),
-              label: const Text("Test Print Receipt"),
+              label: const Text("Test Print Receipt (Full)"),
               style: ElevatedButton.styleFrom(
                 minimumSize: const Size.fromHeight(48),
               ),
             ),
+            const SizedBox(height: 20),
           ],
         ),
       ),

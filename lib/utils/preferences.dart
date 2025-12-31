@@ -10,7 +10,8 @@ class Preferences {
   static const String keyToken = 'auth_token';
   static const String keyPrinterName = 'printer_name';
   static const String keyPrinterAddress = 'printer_address';
-
+  static const String keyPrinterCodePage = 'printer_code_page';
+  static const String keyPrinterImageMode = 'printer_image_mode';
   // --- จัดการ Token (Login/Logout) ---
   
   // บันทึก Token
@@ -57,5 +58,26 @@ class Preferences {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(keyPrinterName);
     await prefs.remove(keyPrinterAddress);
+  }
+
+  Future<void> savePrinterCodePage(int code) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(keyPrinterCodePage, code);
+  }
+
+  // [New] Get Printer Code Page (default to 22 if not set)
+  Future<int> getPrinterCodePage() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt(keyPrinterCodePage) ?? 22;
+  }
+
+  Future<void> savePrinterImageMode(bool isImageMode) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(keyPrinterImageMode, isImageMode);
+  }
+
+  Future<bool> getPrinterImageMode() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(keyPrinterImageMode) ?? false;
   }
 }
