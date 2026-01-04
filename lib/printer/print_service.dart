@@ -135,7 +135,6 @@ class PrintService {
   }) async {
     final GlobalKey receiptKey = GlobalKey();
 
-    // 1. เตรียมรูป QR Code (ถ้ามี)
     File? qrFile;
     try {
       final directory = await getApplicationDocumentsDirectory();
@@ -147,7 +146,6 @@ class PrintService {
       print("Error loading QR for image mode: $e");
     }
 
-    // คำนวณยอดรวม
     double totalAmount = 0.0;
     for (var item in cartItems) {
       totalAmount += item.totalSoldPrice;
@@ -155,21 +153,20 @@ class PrintService {
     final now = DateTime.now();
     final dateStr = "${now.day}/${now.month}/${now.year} ${now.hour}:${now.minute}";
 
-    // 2. สร้าง Widget ใบเสร็จ (รวม QR Code เข้าไปในนี้เลย)
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (BuildContext dialogContext) {
         return Dialog(
-          backgroundColor: Colors.white, // พื้นขาวสำคัญมาก
-          insetPadding: EdgeInsets.zero, // ให้เต็มจอเพื่อความชัวร์ในการ render
+          backgroundColor: Colors.white,
+          insetPadding: EdgeInsets.zero,
           child: SingleChildScrollView(
             child: RepaintBoundary(
               key: receiptKey,
               child: Container(
                 color: Colors.white,
-                padding: const EdgeInsets.all(16.0),
-                width: 380, // กว้างประมาณกระดาษ 58mm (ความละเอียด)
+                padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 10.0), // Reduce side padding slightly
+                width: 380, 
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -184,7 +181,6 @@ class PrintService {
                     
                     Divider(color: Colors.black),
                     
-                    // รายการสินค้า
                     ...cartItems.map((item) => Padding(
                       padding: const EdgeInsets.only(bottom: 4.0),
                       child: Column(
@@ -218,22 +214,27 @@ class PrintService {
                     Center(child: Text("ขอบคุณที่ใช้บริการ", style: TextStyle(fontSize: 18, color: Colors.black))),
                     SizedBox(height: 10),
 
-                    // [สำคัญ] ฝัง QR Code ลงในใบเสร็จเลย
+                    // [แก้ไข] ขยายขนาด QR Code ให้เต็มความกว้าง
                     if (qrFile != null) ...[
                       SizedBox(height: 10),
-                      Center(child: Text("Scan to Pay", style: TextStyle(fontSize: 16, color: Colors.black))),
+                      Center(child: Text("Scan to Pay", style: TextStyle(fontSize: 18, color: Colors.black, fontWeight: FontWeight.bold))),
                       SizedBox(height: 5),
                       Center(
-                        child: Image.file(
-                          qrFile,
-                          width: 200, // ขนาด QR Code
-                          height: 200,
-                          fit: BoxFit.contain,
-                          filterQuality: FilterQuality.high,
+                        child: Container(
+                          color: Colors.white,
+                          padding: EdgeInsets.all(5), // Add padding for quiet zone
+                          width: 380, // ขยายความกว้าง (จากเดิม 200)
+                          height: 380,
+                          child: Image.file(
+                            qrFile,
+                            fit: BoxFit.cover, // Use cover or fill to ensure it uses the space
+                            // FilterQuality.none helps keep QR edges sharp when scaling, 
+                            // but high is also fine if source is good.
+                            filterQuality: FilterQuality.high, 
+                          ),
                         ),
                       ),
                     ],
-                    // เผื่อพื้นที่ด้านล่างนิดหน่อย
                     SizedBox(height: 30),
                   ],
                 ),
@@ -244,48 +245,36 @@ class PrintService {
       },
     );
 
-    // รอให้ Widget วาดเสร็จ
     await Future.delayed(const Duration(milliseconds: 800));
 
     try {
-      // 3. แปลงเป็นรูปภาพ
       Uint8List pngBytes = await _captureWidgetToImage(receiptKey);
-      Navigator.of(context).pop(); // ปิด Dialog
+      Navigator.of(context).pop(); 
 
       final img.Image? originalImage = img.decodeImage(pngBytes);
       if (originalImage != null) {
-        // Resize ให้พอดีหน้ากระดาษ (370px)
-        final img.Image resizedImage = img.copyResize(originalImage, width: 370 ,interpolation: img.Interpolation.cubic);
-        // แปลงเป็นขาวดำ (Grayscale) เพื่อลดขนาดข้อมูล
+        // Use 384 for standard 58mm printer width (usually 384 dots)
+        final img.Image resizedImage = img.copyResize(originalImage, width: 384, interpolation: img.Interpolation.cubic);
+        
+        // Thresholding makes it purely black and white, increasing contrast for scanners
         final img.Image bwImage = img.luminanceThreshold(resizedImage, threshold: 0.5);
 
-        // 4. เตรียมเครื่องพิมพ์ (Reset)
         await bluetooth.writeBytes(Uint8List.fromList([0x1B, 0x40])); 
         await Future.delayed(const Duration(milliseconds: 200)); 
 
-        // 5. เทคนิค Chunking (หั่นภาพเป็นชิ้นเล็กๆ แล้วส่งทีละนิด)
-        // เพื่อป้องกัน Buffer Overflow ที่ทำให้ภาพขาด
         int imageHeight = bwImage.height;
-        int chunkHeight = 100; // ส่งทีละ 100 pixel แนวตั้ง
+        int chunkHeight = 100; 
         
         for (int y = 0; y < imageHeight; y += chunkHeight) {
           int h = (y + chunkHeight > imageHeight) ? (imageHeight - y) : chunkHeight;
-          
-          // ตัดภาพส่วนนี้มา
           img.Image chunk = img.copyCrop(bwImage, x: 0, y: y, width: bwImage.width, height: h);
-          
-          // แปลงเป็น JPG (เร็วกว่า PNG บน bluetooth บางรุ่น)
           final List<int> chunkBytes = img.encodeJpg(chunk, quality: 100);
           
-          // ส่งไปพิมพ์
           bluetooth.printImageBytes(Uint8List.fromList(chunkBytes));
-          
-          // [สำคัญ] พักหายใจนิดนึงระหว่างก้อน
           await Future.delayed(const Duration(milliseconds: 50)); 
         }
 
-        // 6. จบงาน
-        await Future.delayed(const Duration(milliseconds: 1000)); // รอให้พิมพ์หมด buffer
+        await Future.delayed(const Duration(milliseconds: 1000));
         await bluetooth.printNewLine();
         await bluetooth.printNewLine();
         await bluetooth.paperCut();
@@ -295,7 +284,6 @@ class PrintService {
       throw e;
     }
   }
-
   // --- Helper Methods เดิม ---
   Future<void> findThaiCodePage(BuildContext context) async {
     if ((await bluetooth.isConnected) != true) return;
