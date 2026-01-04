@@ -25,7 +25,10 @@ class PreOrderScreen extends ConsumerWidget {
                   itemBuilder: (context, index) {
                     if (index == preOrders.length) {
                       Future.microtask(() => notifier.fetchNextPage());
-                      return const Center(child: Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator()));
+                      return const Center(
+                          child: Padding(
+                              padding: EdgeInsets.all(16),
+                              child: CircularProgressIndicator()));
                     }
 
                     final item = preOrders[index];
@@ -34,13 +37,24 @@ class PreOrderScreen extends ConsumerWidget {
                         onTap: () {
                           showDialog(
                             context: context,
-                            builder: (_) => PreOrderDetailDialog(preOrderId: item.id),
+                            builder: (_) =>
+                                PreOrderDetailDialog(preOrderId: item.id),
                           );
                         },
                         title: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(item.billNo, style: const TextStyle(fontWeight: FontWeight.bold)),
+                            // [แก้ไข] ห่อ Text ด้วย Expanded เพื่อให้ยืดหยุ่นใน Row
+                            Expanded(
+                              child: Text(
+                                item.billNo,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold),
+                                overflow:
+                                    TextOverflow.ellipsis, // ถ้าล้นให้ขึ้น ...
+                              ),
+                            ),
+                            const SizedBox(width: 8), // เว้นระยะห่างนิดนึง
                             _buildStatusBadge(item.status),
                           ],
                         ),
@@ -50,7 +64,8 @@ class PreOrderScreen extends ConsumerWidget {
                             const SizedBox(height: 4),
                             Text("ลูกค้า: ${item.customer.name}"),
                             // ใช้ DateFormat ตรงนี้
-                            Text("วันที่: ${item.createdAt != null ? DateFormat('dd/MM/yyyy HH:mm').format(item.createdAt!) : '-'}"),
+                            Text(
+                                "วันที่: ${item.createdAt != null ? DateFormat('dd/MM/yyyy HH:mm').format(item.createdAt!) : '-'}"),
                           ],
                         ),
                         trailing: Column(
@@ -59,9 +74,14 @@ class PreOrderScreen extends ConsumerWidget {
                           children: [
                             Text(
                               "฿${item.totalSoldPrice}",
-                              style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 16),
+                              style: const TextStyle(
+                                  color: Colors.blue,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16),
                             ),
-                            Text(item.isCredit == 'cash' ? "เงินสด" : "เครดิต", style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                            Text(item.isCredit == 'cash' ? "เงินสด" : "เครดิต",
+                                style: const TextStyle(
+                                    fontSize: 12, color: Colors.grey)),
                           ],
                         ),
                       ),
@@ -75,11 +95,16 @@ class PreOrderScreen extends ConsumerWidget {
     Color color = Colors.grey;
     if (status == 'Pending') color = Colors.orange;
     if (status == 'Completed') color = Colors.green;
-    
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(12), border: Border.all(color: color)),
-      child: Text(status, style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.bold)),
+      decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color)),
+      child: Text(status,
+          style: TextStyle(
+              color: color, fontSize: 10, fontWeight: FontWeight.bold)),
     );
   }
 }
