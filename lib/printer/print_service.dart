@@ -32,7 +32,7 @@ class PrintService {
     try {
       RenderRepaintBoundary boundary = key.currentContext!.findRenderObject() as RenderRepaintBoundary;
       // pixelRatio 2.0 ให้ภาพชัดเจนสำหรับ QR Code แต่อย่าเยอะเกินเดี๋ยวไฟล์ใหญ่
-      ui.Image image = await boundary.toImage(pixelRatio: 2.0); 
+      ui.Image image = await boundary.toImage(pixelRatio: 3.0); 
       ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
       return byteData!.buffer.asUint8List();
     } catch (e) {
@@ -226,9 +226,10 @@ class PrintService {
                       Center(
                         child: Image.file(
                           qrFile,
-                          width: 150, // ขนาด QR Code
-                          height: 150,
+                          width: 200, // ขนาด QR Code
+                          height: 200,
                           fit: BoxFit.contain,
+                          filterQuality: FilterQuality.high,
                         ),
                       ),
                     ],
@@ -244,7 +245,7 @@ class PrintService {
     );
 
     // รอให้ Widget วาดเสร็จ
-    await Future.delayed(const Duration(milliseconds: 500));
+    await Future.delayed(const Duration(milliseconds: 800));
 
     try {
       // 3. แปลงเป็นรูปภาพ
@@ -254,9 +255,9 @@ class PrintService {
       final img.Image? originalImage = img.decodeImage(pngBytes);
       if (originalImage != null) {
         // Resize ให้พอดีหน้ากระดาษ (370px)
-        final img.Image resizedImage = img.copyResize(originalImage, width: 370);
+        final img.Image resizedImage = img.copyResize(originalImage, width: 370 ,interpolation: img.Interpolation.cubic);
         // แปลงเป็นขาวดำ (Grayscale) เพื่อลดขนาดข้อมูล
-        final img.Image grayImage = img.grayscale(resizedImage);
+        final img.Image bwImage = img.luminanceThreshold(resizedImage, threshold: 0.5);
 
         // 4. เตรียมเครื่องพิมพ์ (Reset)
         await bluetooth.writeBytes(Uint8List.fromList([0x1B, 0x40])); 
@@ -264,17 +265,17 @@ class PrintService {
 
         // 5. เทคนิค Chunking (หั่นภาพเป็นชิ้นเล็กๆ แล้วส่งทีละนิด)
         // เพื่อป้องกัน Buffer Overflow ที่ทำให้ภาพขาด
-        int imageHeight = grayImage.height;
+        int imageHeight = bwImage.height;
         int chunkHeight = 100; // ส่งทีละ 100 pixel แนวตั้ง
         
         for (int y = 0; y < imageHeight; y += chunkHeight) {
           int h = (y + chunkHeight > imageHeight) ? (imageHeight - y) : chunkHeight;
           
           // ตัดภาพส่วนนี้มา
-          img.Image chunk = img.copyCrop(grayImage, x: 0, y: y, width: grayImage.width, height: h);
+          img.Image chunk = img.copyCrop(bwImage, x: 0, y: y, width: bwImage.width, height: h);
           
           // แปลงเป็น JPG (เร็วกว่า PNG บน bluetooth บางรุ่น)
-          final List<int> chunkBytes = img.encodeJpg(chunk);
+          final List<int> chunkBytes = img.encodeJpg(chunk, quality: 100);
           
           // ส่งไปพิมพ์
           bluetooth.printImageBytes(Uint8List.fromList(chunkBytes));
