@@ -12,6 +12,7 @@ class Preferences {
   static const String keyPrinterAddress = 'printer_address';
   static const String keyPrinterCodePage = 'printer_code_page';
   static const String keyPrinterImageMode = 'printer_image_mode';
+  static const String keyPrinterFontSize = "printer_font_size";
   // --- จัดการ Token (Login/Logout) ---
   
   // บันทึก Token
@@ -80,4 +81,16 @@ class Preferences {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool(keyPrinterImageMode) ?? false;
   }
+  // [เพิ่ม] ดึงค่าขนาดตัวอักษร (Default 18.0)
+  Future<double> getPrinterFontSize() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    return prefs.getDouble(keyPrinterFontSize) ?? 18.0; 
+  }
+
+  // [เพิ่ม] บันทึกค่าขนาดตัวอักษร
+  Future<void> setPrinterFontSize(double size) async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(keyPrinterFontSize, size);
+  }
+  
 }

@@ -21,11 +21,21 @@ class _PrinterPageState extends ConsumerState<PrinterPage> {
   final Preferences preferences = Preferences();
   final TextEditingController _codePageController = TextEditingController(text: '22');
   bool _isImageMode = false;
-
+  double _fontSize = 18.0;
   @override
   void initState() {
     super.initState();
     _initPrinter();
+    _getPrinterSettings();
+  }
+
+  Future<void> _getPrinterSettings() async {
+    bool imageMode = await preferences.getPrinterImageMode();
+    double fontSize = await preferences.getPrinterFontSize(); // โหลด Font Size
+    setState(() {
+      _isImageMode = imageMode;
+      _fontSize = fontSize;
+    });
   }
 
   Future<void> _initPrinter() async {
@@ -297,7 +307,6 @@ class _PrinterPageState extends ConsumerState<PrinterPage> {
 
             const SizedBox(height: 16),
             const Divider(),
-            
             // [New] Image Mode Switch
             SwitchListTile(
               title: const Text("พิมพ์แบบรูปภาพ (Image Mode)"),
@@ -306,9 +315,58 @@ class _PrinterPageState extends ConsumerState<PrinterPage> {
               onChanged: _toggleImageMode,
               activeColor: Theme.of(context).colorScheme.primary,
             ),
-
             const SizedBox(height: 16),
-            
+             Card(
+              color: _isImageMode ? Colors.white : Colors.grey.shade100,
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          "ขนาดตัวอักษร (Font Size): ${_fontSize.toInt()}", 
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: _isImageMode ? Colors.black : Colors.grey,
+                          ),
+                        ),
+                        if (!_isImageMode)
+                          const Text("(ใช้ได้เฉพาะโหมดรูปภาพ)", style: TextStyle(fontSize: 10, color: Colors.red)),
+                      ],
+                    ),
+                    Slider(
+                      value: _fontSize,
+                      min: 14.0, 
+                      max: 30.0, 
+                      divisions: 16, 
+                      label: _fontSize.round().toString(),
+                      onChanged: _isImageMode 
+                          ? (double value) {
+                              setState(() {
+                                _fontSize = value;
+                              });
+                            }
+                          : null, 
+                      onChangeEnd: _isImageMode 
+                          ? (double value) {
+                              preferences.setPrinterFontSize(value);
+                            }
+                          : null,
+                    ),
+                    Text(
+                      "ปรับขนาดตัวอักษรสำหรับโหมดรูปภาพ (Image Mode)", 
+                      style: TextStyle(
+                        fontSize: 12, 
+                        color: _isImageMode ? Colors.grey : Colors.grey.shade400
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
             ElevatedButton.icon(
               onPressed: isConnected 
                   ? () => PrintService().printReceipt(context, [

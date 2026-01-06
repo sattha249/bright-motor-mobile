@@ -134,6 +134,10 @@ class PrintService {
     String? paymentType,
   }) async {
     final GlobalKey receiptKey = GlobalKey();
+    double baseFontSize = await preferences.getPrinterFontSize();
+    double headerSize = baseFontSize * 1.4; // หัวข้อใหญ่กว่าปกติ 40%
+    double normalSize = baseFontSize;       // ขนาดปกติ
+    double smallSize = baseFontSize * 0.8;  // ขนาดเล็ก (เช่น รายละเอียด)
 
     File? qrFile;
     try {
@@ -171,13 +175,13 @@ class PrintService {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Center(child: Text("BRIGHT MOTOR", style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.black))),
-                    Center(child: Text("STORE", style: TextStyle(fontSize: 20, color: Colors.black))),
+                    Center(child: Text("BRIGHT MOTOR", style: TextStyle(fontSize: headerSize, fontWeight: FontWeight.bold, color: Colors.black))),
+                    Center(child: Text("STORE", style: TextStyle(fontSize: headerSize * 0.8, color: Colors.black))),
                     Divider(color: Colors.black, thickness: 1.5),
                     
-                    Text("Date: $dateStr", style: TextStyle(fontSize: 16, color: Colors.black)),
+                    Text("Date: $dateStr", style: TextStyle(fontSize: normalSize, color: Colors.black)),
                     if (customerName != null) 
-                      Text("ลูกค้า: $customerName", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black)),
+                      Text("ลูกค้า: $customerName", style: TextStyle(fontSize: normalSize, fontWeight: FontWeight.bold, color: Colors.black)),
                     
                     Divider(color: Colors.black),
                     
@@ -186,16 +190,16 @@ class PrintService {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(item.product.description, style: TextStyle(fontSize: 16, color: Colors.black)),
+                          Text(item.product.description, style: TextStyle(fontSize: normalSize, color: Colors.black)),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text("${item.quantity} x ${item.soldPrice.toStringAsFixed(2)}", style: TextStyle(fontSize: 14, color: Colors.black)),
-                              Text(_formatCurrency(item.totalSoldPrice), style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black)),
+                              Text("${item.quantity} x ${item.soldPrice.toStringAsFixed(2)}", style: TextStyle(fontSize: smallSize, color: Colors.black)),
+                              Text(_formatCurrency(item.totalSoldPrice), style: TextStyle(fontSize: normalSize, fontWeight: FontWeight.bold, color: Colors.black)),
                             ],
                           ),
                           if (item.discountValue > 0) 
-                            Text("  (ส่วนลด ${item.discountValue})", style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic, color: Colors.black)),
+                            Text("  (ส่วนลด ${item.discountValue})", style: TextStyle(fontSize: smallSize, fontStyle: FontStyle.italic, color: Colors.black)),
                         ],
                       ),
                     )),
@@ -205,13 +209,13 @@ class PrintService {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text("ยอดรวม:", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black)),
-                        Text(_formatCurrency(totalAmount), style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black)),
+                        Text("ยอดรวม:", style: TextStyle(fontSize: headerSize, fontWeight: FontWeight.bold, color: Colors.black)),
+                        Text(_formatCurrency(totalAmount), style: TextStyle(fontSize: headerSize, fontWeight: FontWeight.bold, color: Colors.black)),
                       ],
                     ),
                     
                     SizedBox(height: 20),
-                    Center(child: Text("ขอบคุณที่ใช้บริการ", style: TextStyle(fontSize: 18, color: Colors.black))),
+                    Center(child: Text("ขอบคุณที่ใช้บริการ", style: TextStyle(fontSize: normalSize, color: Colors.black))),
                     SizedBox(height: 10),
 
                     // [แก้ไข] ขยายขนาด QR Code ให้เต็มความกว้าง
