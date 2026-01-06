@@ -367,6 +367,7 @@ class _PrinterPageState extends ConsumerState<PrinterPage> {
                 ),
               ),
             ),
+            const SizedBox(height: 10),
             ElevatedButton.icon(
               onPressed: isConnected 
                   ? () => PrintService().printReceipt(context, [
@@ -399,7 +400,7 @@ class _PrinterPageState extends ConsumerState<PrinterPage> {
                 minimumSize: const Size.fromHeight(48),
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 15),
           ],
         ),
       ),
