@@ -61,7 +61,7 @@ class ProductNotifier extends StateNotifier<List<Product>> {
   void reload() async {
     if (truckId != null) {
       try {
-        final response = await truckService.getTruckStocks(truckId!, limit: 10000);
+        final response = await truckService.getTruckStocks(truckId!, limit: 300);
         
         final data = response.data
             // [แก้ไข] กรอง item ที่ product เป็น null ทิ้งไปก่อน
