@@ -33,7 +33,7 @@ class TruckStockServiceImpl implements TruckStockService {
     try {
       final token = await preferences.getToken();
       
-      String url = '$baseUrl/trucks/$truckId/stocks?page=$page&limit=10';
+      String url = '$baseUrl/trucks/$truckId/stocks?page=$page&perPage=10';
       if (query.isNotEmpty) {
         url += '&search=$query';
       }

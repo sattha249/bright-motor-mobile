@@ -65,7 +65,7 @@ class ProductServiceImpl extends ProductService {
     try {
       final headers = await authService.getAuthHeader();
       
-      final url = '$baseUrl/trucks/$truckId/stocks?search=$query&page=$page&limit=$limit';
+      final url = '$baseUrl/trucks/$truckId/stocks?search=$query&page=$page&perPage=$limit';
 
       final response = await defaultHttpClient().get(
         Uri.parse(url),

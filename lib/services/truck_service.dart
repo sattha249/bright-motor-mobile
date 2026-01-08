@@ -44,7 +44,7 @@ class TruckService {
       final token = await preferences.getToken();
 
       // [แก้ไข] ส่ง Query Param page และ limit ไปแทน hardcode perPage=50
-      final url = "$endpoint/trucks/$truckId/stocks?page=$page&limit=$limit";
+      final url = "$endpoint/trucks/$truckId/stocks?page=$page&perPage=$limit";
 
       final response = await defaultHttpClient().get(
         Uri.parse(url),
