@@ -1,12 +1,16 @@
+import 'dart:async';
 import 'package:brightmotor_store/components/product_tile.dart';
+import 'package:brightmotor_store/models/cart_model.dart';
 import 'package:brightmotor_store/models/customer.dart';
-import 'package:brightmotor_store/providers/cart_provider.dart'; // ตรวจสอบ path นี้ให้ถูกต้อง
+import 'package:brightmotor_store/models/product_model.dart';
+import 'package:brightmotor_store/providers/cart_provider.dart';
 import 'package:brightmotor_store/providers/product_search_provider.dart';
 import 'package:brightmotor_store/screens/cart_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
-class ProductSearchScreen extends ConsumerWidget {
+class ProductSearchScreen extends HookConsumerWidget {
   final Customer? customer;
   final bool cartVisible;
 
@@ -18,87 +22,178 @@ class ProductSearchScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // 1. ดึงข้อมูลสินค้า (State)
+    // 1. Fetch search results (State)
     final result = ref.watch(productSearchProvider);
     
-    // 2. ดึง Notifier เพื่อเรียกฟังก์ชันและเช็คสถานะ (isLoading, hasMore)
+    // 2. Fetch Notifier for actions and state checks
     final notifier = ref.read(productSearchProvider.notifier);
     
+    // 3. Cart data for stock calculation
+    final cartItems = ref.watch(cartProvider);
     final itemCount = ref.watch(cartItemCountProvider);
-    final controller = TextEditingController();
+    
+    final controller = useTextEditingController();
+    final hasSearched = useState(false);
+    final debounceTimer = useRef<Timer?>(null);
+
+    void onSearchChanged(String query) {
+      if (debounceTimer.value?.isActive ?? false) {
+        debounceTimer.value?.cancel();
+      }
+      debounceTimer.value = Timer(const Duration(milliseconds: 500), () {
+        if (query.isNotEmpty) {
+          hasSearched.value = true;
+          notifier.search(query);
+        } else {
+          hasSearched.value = false;
+        }
+      });
+    }
 
     return Scaffold(
       appBar: AppBar(
         title: TextField(
           controller: controller,
+          autofocus: true,
           decoration: const InputDecoration(
-            hintText: 'Search Product',
+            hintText: 'ค้นหาสินค้า...',
             border: InputBorder.none,
             prefixIcon: Icon(Icons.search),
           ),
           textInputAction: TextInputAction.search,
-          onSubmitted: (value) {
-            ref.read(productSearchProvider.notifier).search(value);
-          },
+          onChanged: onSearchChanged,
         ),
       ),
-      body: CustomScrollView(
-        slivers: [
-          SliverPadding(
-            padding: const EdgeInsets.all(16),
-            sliver: SliverList.builder(
-              // เพิ่ม +1 เสมอ เพื่อเป็นพื้นที่สำหรับ Loading Indicator หรือข้อความ "หมด" ด้านล่าง
-              itemCount: result.length + 1,
-              itemBuilder: (context, index) {
-                // --- ส่วนแสดงรายการสินค้าปกติ ---
-                if (index < result.length) {
-                  final product = result[index];
-                  return ProductTile(
-                    product: product,
-                    actionVisible: cartVisible,
-                    onAction: (product) {
-                      ref.read(cartProvider.notifier).addItem(product);
-                    },
-                  );
-                }
+      body: Builder(
+        builder: (context) {
+          // Case 1: Initial State (No search yet)
+          if (!hasSearched.value && result.isEmpty) {
+            return const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.search, size: 64, color: Colors.grey),
+                  SizedBox(height: 16),
+                  Text(
+                    "พิมพ์ชื่อสินค้าเพื่อค้นหา",
+                    style: TextStyle(color: Colors.grey, fontSize: 18),
+                  ),
+                ],
+              ),
+            );
+          }
 
-                // --- ส่วนจัดการ Pagination (รายการสุดท้าย) ---
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 24.0),
-                  child: Center(
-                    child: Builder(
-                      builder: (context) {
-                        // 1. ถ้าโหลดครบทุกหน้าแล้ว (ไม่มีข้อมูลเหลือ)
-                        if (!notifier.hasMore) {
-                          // ถ้าไม่มีสินค้าเลยสักชิ้น ให้บอกว่า "ไม่พบสินค้า"
-                          if (result.isEmpty) {
-                            return const Text(
-                              "ไม่พบสินค้า",
-                              style: TextStyle(color: Colors.grey, fontSize: 16),
+          // Case 2: Loading (First load)
+          if (notifier.isLoading && result.isEmpty) {
+             return const Center(child: CircularProgressIndicator.adaptive());
+          }
+
+          // Case 3: No Results
+          if (result.isEmpty && !notifier.isLoading && hasSearched.value) {
+            return const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.inventory_2_outlined, size: 64, color: Colors.grey),
+                  SizedBox(height: 16),
+                  Text(
+                    "ไม่พบสินค้า",
+                    style: TextStyle(color: Colors.grey, fontSize: 18),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          // Case 4: Results List
+          return CustomScrollView(
+            slivers: [
+              SliverPadding(
+                padding: const EdgeInsets.all(16),
+                sliver: SliverList.builder(
+                  itemCount: result.length + 1,
+                  itemBuilder: (context, index) {
+                    // --- Product Item Logic ---
+                    if (index < result.length) {
+                      print("result = ${result.first.toJson()}");
+                      final product = result[index];
+
+                      // --- [LOGIC from CategoryScreen] ---
+                      
+                      // 1. Find if product is already in cart
+                      final existingCartItem = cartItems.firstWhere(
+                        (item) => item.product.id == product.id,
+                        orElse: () => CartItem(product: product, quantity: 0),
+                      );
+
+                      // 2. Get quantity in cart
+                      final countInCart = existingCartItem.quantity;
+
+                      // 3. Calculate remaining stock
+                      final remainingQty = product.quantity - countInCart;
+
+                      // 4. Create display product with updated quantity
+                      final displayProduct = product.copyWith(quantity: remainingQty);
+
+                      return ProductTile(
+                        product: displayProduct, // Pass the calculated product
+                        // actionVisible: cartVisible, // Optional: control visibility if needed
+                        onAction: (_) {
+                          // Check remaining stock before adding
+                          if (remainingQty > 0) {
+                            ref.read(cartProvider.notifier).addItem(product);
+                            
+                            ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('เพิ่ม ${product.description} ลงตะกร้า'),
+                                duration: const Duration(milliseconds: 500),
+                              ),
+                            );
+                          } else {
+                            // Out of stock feedback
+                            ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'สินค้าหมด! (สต็อก: ${product.quantity} ${product.unit})',
+                                  style: const TextStyle(color: Colors.white),
+                                ),
+                                backgroundColor: Colors.red,
+                                duration: const Duration(seconds: 1000),
+                              ),
                             );
                           }
-                          // ถ้ามีสินค้าแล้ว แต่โหลดจนครบ
-                          return const Text(
-                            "สิ้นสุดรายการสินค้า",
-                            style: TextStyle(color: Colors.grey),
-                          );
-                        }
+                        },
+                      );
+                    }
 
-                        // 2. ถ้ายังมีข้อมูลเหลือ และไม่ได้กำลังโหลดอยู่ -> สั่งโหลดเพิ่ม
-                        if (!notifier.isLoading) {
-                          Future.microtask(() => notifier.fetchNextPage());
-                        }
-
-                        // 3. แสดง Loading Indicator
-                        return const CircularProgressIndicator.adaptive();
-                      },
-                    ),
-                  ),
-                );
-              },
-            ),
-          )
-        ],
+                    // --- Pagination Loader ---
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 24.0),
+                      child: Center(
+                        child: Builder(
+                          builder: (context) {
+                            if (!notifier.hasMore) {
+                              return const Text(
+                                "สิ้นสุดรายการสินค้า",
+                                style: TextStyle(color: Colors.grey),
+                              );
+                            }
+                            if (!notifier.isLoading) {
+                              Future.microtask(() => notifier.fetchNextPage());
+                            }
+                            return const CircularProgressIndicator.adaptive();
+                          },
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              )
+            ],
+          );
+        },
       ),
       floatingActionButton: Visibility(
         visible: itemCount > 0 && customer != null,

@@ -16,7 +16,7 @@ final productServiceProvider = Provider.autoDispose<ProductService>((ref) {
 
 abstract class ProductService {
   Future<ProductResponse> getProducts({String? category, int page = 1, int limit = 20});
-  Future<ProductResponse> search(String query, {int page = 1, int limit = 20});
+  Future<ProductSearchResponse> search(String query, {int page = 1, int limit = 20});
 }
 
 class ProductServiceImpl extends ProductService {
@@ -58,7 +58,7 @@ class ProductServiceImpl extends ProductService {
   }
 
   @override
-  Future<ProductResponse> search(String query, {int page = 1, int limit = 20}) async {
+  Future<ProductSearchResponse> search(String query, {int page = 1, int limit = 20}) async {
     if (truckId == null) {
       throw Exception('Truck ID is not set. Cannot perform search.');
     }
@@ -76,7 +76,7 @@ class ProductServiceImpl extends ProductService {
         // หมายเหตุ: ตรงนี้ถ้าโครงสร้าง JSON ของ search ไม่เหมือน getProducts ปกติ 
         // อาจจะต้องปรับแก้การ Parse ให้ตรงกับ API จริงของคุณ
         // แต่เบื้องต้นผมใช้ ProductResponse ตามที่คุณเคยให้มา
-        return ProductResponse.fromJson(jsonDecode(response.body));
+        return ProductSearchResponse.fromJson(jsonDecode(response.body));
       } else {
         throw Exception('Failed to load products: ${response.body}');
       }
