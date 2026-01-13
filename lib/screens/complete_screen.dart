@@ -4,10 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 // [แก้ไข] รับ items เข้ามาทาง Constructor
-Future<dynamic> launchCheckoutCompleteScreen(BuildContext context, List<CartItem> items) {
+Future<dynamic> launchCheckoutCompleteScreen(BuildContext context, List<CartItem> items, String? customerName) {
   return Navigator.of(context).push(
     MaterialPageRoute(
-      builder: (context) => CompleteScreen(items: items), 
+      builder: (context) => CompleteScreen(items: items, customerName: customerName), 
       fullscreenDialog: true
     )
   );
@@ -15,8 +15,8 @@ Future<dynamic> launchCheckoutCompleteScreen(BuildContext context, List<CartItem
 
 class CompleteScreen extends ConsumerWidget {
   final List<CartItem> items; // [เพิ่ม] รับรายการสินค้าที่ขายไปแล้ว
-
-  const CompleteScreen({super.key, required this.items});
+  final String? customerName;
+  const CompleteScreen({super.key, required this.items,this.customerName});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -51,7 +51,7 @@ class CompleteScreen extends ConsumerWidget {
                 const SizedBox(width: 16),
                 ElevatedButton.icon(
                   onPressed: () {
-                    PrintService().printReceipt(context, items);
+                    PrintService().printReceipt(context, items,customerName: customerName);
                     // [แก้ไข] ส่ง items ไปพิมพ์ (PrintService ต้องรองรับ List<CartItem>)
                     // PrintService().printReceipt(items); 
                     

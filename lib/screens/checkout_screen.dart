@@ -116,7 +116,7 @@ class CheckoutScreen extends ConsumerWidget {
                 
                 if (context.mounted) {
                   // ส่ง cartItems ไปให้หน้า Complete (ก่อนจะถูก clear)
-                  await launchCheckoutCompleteScreen(context, cartItems); 
+                  await launchCheckoutCompleteScreen(context, cartItems, customer.name); 
                   ref.read(cartProvider.notifier).clear(); // ล้างตะกร้าหลังจบ
                   Navigator.of(context).popUntil((route) => route.isFirst);
                 }

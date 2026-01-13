@@ -290,7 +290,8 @@ class _PreOrderDetailDialogState extends ConsumerState<PreOrderDetailDialog> {
         // ไปหน้า Complete Screen
         await launchCheckoutCompleteScreen(
           context, 
-          cartItemsForPrint
+          cartItemsForPrint, 
+           _safeGetCustomerName(PreOrder.fromJson(rawJson))
         );
       }
 

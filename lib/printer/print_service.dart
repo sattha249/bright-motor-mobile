@@ -218,7 +218,7 @@ class PrintService {
                     Center(child: Text("ขอบคุณที่ใช้บริการ", style: TextStyle(fontSize: normalSize, color: Colors.black))),
                     SizedBox(height: 10),
 
-                    // [แก้ไข] ขยายขนาด QR Code ให้เต็มความกว้าง
+                    // QR Code Section
                     if (qrFile != null) ...[
                       SizedBox(height: 10),
                       Center(child: Text("Scan to Pay", style: TextStyle(fontSize: 18, color: Colors.black, fontWeight: FontWeight.bold))),
@@ -227,18 +227,45 @@ class PrintService {
                         child: Container(
                           color: Colors.white,
                           padding: EdgeInsets.all(5), // Add padding for quiet zone
-                          width: 380, // ขยายความกว้าง (จากเดิม 200)
+                          width: 380, // ขยายความกว้าง
                           height: 380,
                           child: Image.file(
                             qrFile,
-                            fit: BoxFit.cover, // Use cover or fill to ensure it uses the space
-                            // FilterQuality.none helps keep QR edges sharp when scaling, 
-                            // but high is also fine if source is good.
+                            fit: BoxFit.cover, 
                             filterQuality: FilterQuality.high, 
                           ),
                         ),
                       ),
                     ],
+
+                    // --- [ส่วนที่เพิ่ม] เส้นจุดไข่ปลาและลายเซ็นต์ ---
+                    SizedBox(height: 80), // เว้นระยะห่างด้านบนให้พอดีกับการเซ็น
+                    Center(
+                      child: Text(
+                        "................................................................", 
+                        style: TextStyle(
+                          fontSize: normalSize, 
+                          color: Colors.black, 
+                          letterSpacing: 3, // เพิ่มระยะห่างระหว่างจุดให้ดูเหมือนเส้นประ
+                          fontWeight: FontWeight.bold
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.clip,
+                      ),
+                    ),
+                    SizedBox(height: 8),
+                    Center(
+                      child: Text(
+                        "ลายเซ็นต์", 
+                        style: TextStyle(
+                          fontSize: normalSize, 
+                          fontWeight: FontWeight.bold, 
+                          color: Colors.black
+                        )
+                      )
+                    ),
+                    // ------------------------------------------------
+
                     SizedBox(height: 30),
                   ],
                 ),

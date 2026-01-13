@@ -198,7 +198,7 @@ class CartScreen extends ConsumerWidget {
                         if (context.mounted) {
                           // [แก้ไข] 1. ไปหน้า Complete ก่อน (ส่ง list ที่ clone ไว้ หรือดึงจาก provider ในหน้าถัดไปก็ได้ แต่ส่งไปชัวร์สุด)
                           final soldItems = List<CartItem>.from(cartItems); // Clone ไว้ก่อน clear
-                          await launchCheckoutCompleteScreen(context, soldItems);
+                          await launchCheckoutCompleteScreen(context, soldItems, customer.name,);
                           
                           // [แก้ไข] 2. พอกลับมาจากหน้า Complete (หรือกดปิดในหน้านั้น) ค่อยเคลียร์
                           notifier.clear(); 
