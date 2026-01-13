@@ -14,6 +14,7 @@ abstract class PreOrderService {
   Future<PreOrder> getPreOrderDetail(int id);
   Future<void> confirmPreOrder(int id);
   Future<Map<String, dynamic>> getPreOrderRaw(int id);
+  Future<void> cancelPreOrder(int preOrderId);
 }
 
 class PreOrderServiceImpl implements PreOrderService {
@@ -120,4 +121,20 @@ class PreOrderServiceImpl implements PreOrderService {
       throw Exception('Error getting raw data: $e');
     }
   }
+
+  Future<void> cancelPreOrder(int preOrderId) async {
+  final token = await preferences.getToken();
+  // แก้ path ตาม API ของคุณ
+  final response = await defaultHttpClient().post(
+    Uri.parse('$baseUrl/pre-orders/$preOrderId/cancel'), 
+    headers: {
+      'Authorization': 'Bearer $token',
+      'Content-Type': 'application/json',
+    },
+  );
+
+  if (response.statusCode != 200) {
+    throw Exception('Failed to cancel pre-order: ${response.body}');
+  }
+}
 }

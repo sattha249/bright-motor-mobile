@@ -1,6 +1,7 @@
 import 'package:brightmotor_store/models/cart_model.dart';
 import 'package:brightmotor_store/models/pre_order_model.dart';
 import 'package:brightmotor_store/models/product_model.dart';
+import 'package:brightmotor_store/providers/pre_order_provider.dart'; // [เพิ่ม] เพื่อ refresh provider
 import 'package:brightmotor_store/screens/complete_screen.dart';
 import 'package:brightmotor_store/services/pre_order_service.dart';
 import 'package:brightmotor_store/services/sell_service.dart';
@@ -106,29 +107,55 @@ class _PreOrderDetailDialogState extends ConsumerState<PreOrderDetailDialog> {
                 // Actions
                 Padding(
                   padding: const EdgeInsets.all(16.0),
-                  child: Row(
+                  child: Column(
                     children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: isProcessing ? null : () => Navigator.pop(context),
-                          child: const Text("ปิด"),
-                        ),
-                      ),
+                      // ปุ่มหลัก (ยืนยัน)
                       if (canConfirm) ...[
-                        const SizedBox(width: 16),
-                        Expanded(
+                        SizedBox(
+                          width: double.infinity,
                           child: ElevatedButton(
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.green,
                               foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
                             ),
                             onPressed: isProcessing ? null : () => _handleConfirm(context, order.id, ref),
                             child: isProcessing 
                               ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                              : const Text("ยืนยันรายการ"),
+                              : const Text("ยืนยันรายการ (ส่งของ)"),
                           ),
                         ),
-                      ]
+                        const SizedBox(height: 12),
+                      ],
+
+                      // ปุ่มรอง (ยกเลิก & ปิด)
+                      Row(
+                        children: [
+                          if (canConfirm) ...[
+                            // [เพิ่ม] ปุ่มยกเลิกใบงาน (สีแดง)
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                icon: const Icon(Icons.delete_forever, size: 18),
+                                label: const Text("ยกเลิก"),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.red,
+                                  side: const BorderSide(color: Colors.red),
+                                ),
+                                onPressed: isProcessing ? null : () => _showCancelConfirmation(context, order.id, ref),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                          ],
+                          
+                          // ปุ่มปิด
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: isProcessing ? null : () => Navigator.pop(context),
+                              child: const Text("ปิดหน้าต่าง"),
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 )
@@ -140,7 +167,62 @@ class _PreOrderDetailDialogState extends ConsumerState<PreOrderDetailDialog> {
     );
   }
 
-  // --- Logic ยืนยันรายการ ---
+  // --- [เพิ่ม] Dialog ยืนยันการยกเลิก ---
+  void _showCancelConfirmation(BuildContext context, int preOrderId, WidgetRef ref) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("ยืนยันการยกเลิก"),
+        content: const Text(
+          "หากยกเลิกแล้วจะไม่สามารถย้อนกลับได้ ต้องสร้างใหม่โดยโกดังเท่านั้น\n\nคุณแน่ใจหรือไม่?",
+          style: TextStyle(fontSize: 16),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text("ไม่ยกเลิก", style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+            onPressed: () {
+              Navigator.pop(ctx); // ปิด Confirm Dialog
+              _handleCancel(context, preOrderId, ref); // เรียกฟังก์ชันยกเลิกจริง
+            },
+            child: const Text("ยืนยันยกเลิก"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- [เพิ่ม] Logic การยกเลิกจริง ---
+  Future<void> _handleCancel(BuildContext context, int preOrderId, WidgetRef ref) async {
+    setState(() => isProcessing = true);
+  try {
+      // เรียก API Cancel (ต้องเพิ่ม method นี้ใน PreOrderService ด้วย ถ้ายังไม่มี)
+      // สมมติว่า method ชื่อ cancelPreOrder
+      await ref.read(preOrderServiceProvider).cancelPreOrder(preOrderId);
+
+      if (mounted) {
+        Navigator.pop(context); // ปิด Dialog รายละเอียด
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("ยกเลิกใบงานเรียบร้อยแล้ว"), backgroundColor: Colors.orange),
+        );
+        // Refresh List หน้าหลัก
+        ref.invalidate(preOrderProvider);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("เกิดข้อผิดพลาด: $e"), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => isProcessing = false);
+    }
+  }
+
+  // --- Logic ยืนยันรายการ (เดิม) ---
   Future<void> _handleConfirm(BuildContext context, int preOrderId, WidgetRef ref) async {
     setState(() => isProcessing = true);
 
@@ -177,9 +259,6 @@ class _PreOrderDetailDialogState extends ConsumerState<PreOrderDetailDialog> {
       final List<CartItem> cartItemsForPrint = (rawJson['items'] as List).map((item) {
         final productData = item['product'] ?? {};
         
-        // [แก้ไขให้ตรงกับ Model Product]
-        // 1. ตัด productCode/code ทิ้ง เพราะไม่มีใน Model
-        // 2. costPrice/sellPrice ต้องเป็น String (ตาม Model)
         final product = Product(
           id: item['product_id'],
           
@@ -189,14 +268,12 @@ class _PreOrderDetailDialogState extends ConsumerState<PreOrderDetailDialog> {
           category: productData['category'] ?? '',
           unit: productData['unit'] ?? '',
           
-          // แปลงเป็น String ตาม Model
           costPrice: (productData['cost_price'] ?? '0').toString(), 
           sellPrice: (item['sold_price'] ?? '0').toString(), 
           
           quantity: 0
         );
 
-        // CartItem ยังต้องการค่า discountValue เป็น double
         return CartItem(
           product: product,
           quantity: item['quantity'],
@@ -207,6 +284,9 @@ class _PreOrderDetailDialogState extends ConsumerState<PreOrderDetailDialog> {
       if (mounted) {
         Navigator.pop(context); // ปิด Dialog
         
+        // Refresh List หน้าหลัก (เพื่อให้รายการหายไปจากหน้า Pending)
+        ref.invalidate(preOrderProvider);
+
         // ไปหน้า Complete Screen
         await launchCheckoutCompleteScreen(
           context, 
