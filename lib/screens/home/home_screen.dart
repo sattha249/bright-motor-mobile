@@ -8,6 +8,7 @@ import 'package:brightmotor_store/screens/product/product_search_screen.dart';
 import 'package:brightmotor_store/services/session_preferences.dart';
 import 'package:brightmotor_store/screens/pre_order_screen.dart';
 import 'package:brightmotor_store/screens/sync_data_screen.dart';
+import 'package:brightmotor_store/screens/sell_history_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
@@ -189,6 +190,31 @@ class HomeScreen extends ConsumerWidget {
                         ),
                       ),
                       // Add more menu tiles here for 2x2 grid if needed
+                      GestureDetector(
+  onTap: () {
+    if (truck?.truckId != null) {
+      Navigator.of(context).push(MaterialPageRoute(
+          builder: (context) => const SellHistoryScreen()));
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("ไม่พบข้อมูล Truck ID")),
+      );
+    }
+  },
+  child: const Card(
+    child: Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.history, size: 48, color: Colors.purple),
+          SizedBox(height: 8),
+          Text("ประวัติการขาย",
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        ],
+      ),
+    ),
+  ),
+),
                     ],
                   ),
                 ],
