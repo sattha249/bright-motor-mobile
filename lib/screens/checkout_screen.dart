@@ -75,12 +75,6 @@ class CheckoutScreen extends ConsumerWidget {
                       onChanged: (val) => ref.read(paymentTermProvider.notifier).state = val!,
                     ),
                     _PaymentOption(
-                      title: "เครดิตรายสัปดาห์",
-                      value: PaymentTerm.weekly,
-                      groupValue: paymentTerm,
-                      onChanged: (val) => ref.read(paymentTermProvider.notifier).state = val!,
-                    ),
-                    _PaymentOption(
                       title: "เครดิตรายเดือน",
                       value: PaymentTerm.monthly,
                       groupValue: paymentTerm,

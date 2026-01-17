@@ -1,19 +1,25 @@
 import 'package:brightmotor_store/models/cart_model.dart'; // import CartItem
-import 'package:brightmotor_store/providers/truck_provider.dart';
 import 'package:brightmotor_store/printer/print_service.dart';
-import 'package:brightmotor_store/services/sale_history_service.dart'; // Import ไฟล์ service
+import 'package:brightmotor_store/providers/truck_provider.dart';
+import 'package:brightmotor_store/services/sell_history_service.dart'; // ตรวจสอบ path ให้ถูกต้อง
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:intl/intl.dart';
 
-// สร้าง FutureProvider สำหรับ UI เรียกใช้ โดยผ่าน Service อีกที
-final sellLogsListProvider = FutureProvider.autoDispose<List<dynamic>>((ref) async {
-  final truck = ref.watch(currentTruckProvider);
-  if (truck?.truckId == null) return [];
+// 1. Provider เก็บเลขหน้าปัจจุบัน (เริ่มที่หน้า 1)
+final sellHistoryPageProvider = StateProvider.autoDispose<int>((ref) => 1);
 
-  // เรียกใช้ Service ผ่าน Provider
+// 2. Provider ดึงข้อมูล (รับค่าเป็น Map เพื่อเอา meta data)
+final sellLogsResultProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
+  final truck = ref.watch(currentTruckProvider);
+  final page = ref.watch(sellHistoryPageProvider); // ฟังค่าเลขหน้า ถ้าเปลี่ยนจะโหลดใหม่
+
+  if (truck?.truckId == null) return {};
+
   final service = ref.read(sellHistoryServiceProvider);
-  return service.getSellLogs(truckId: truck!.truckId!);
+  
+  // เรียก Service ที่เราแก้ไปเมื่อกี้ (return Map)
+  return service.getSellLogs(truckId: truck!.truckId!, page: page);
 });
 
 class SellHistoryScreen extends ConsumerWidget {
@@ -21,8 +27,8 @@ class SellHistoryScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // เปลี่ยนมา watch ตัว list provider
-    final asyncLogs = ref.watch(sellLogsListProvider);
+    final asyncResult = ref.watch(sellLogsResultProvider);
+    final currentPage = ref.watch(sellHistoryPageProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -30,48 +36,117 @@ class SellHistoryScreen extends ConsumerWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: () => ref.refresh(sellLogsListProvider),
+            onPressed: () => ref.refresh(sellLogsResultProvider),
           )
         ],
       ),
-      body: asyncLogs.when(
+      body: asyncResult.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, stack) => Center(child: Text('Error: $err')),
-        data: (logs) {
-          if (logs.isEmpty) {
+        data: (result) {
+          // แกะข้อมูลจาก Map
+          final logs = result['data'] as List<dynamic>? ?? [];
+          final meta = result['meta'] as Map<String, dynamic>? ?? {};
+
+          if (logs.isEmpty && currentPage == 1) {
             return const Center(child: Text("ไม่พบประวัติการขาย"));
           }
 
-          return SingleChildScrollView(
-            scrollDirection: Axis.vertical,
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: DataTable(
-                columnSpacing: 20,
-                columns: const [
-                  DataColumn(label: Text('เวลา')),
-                  DataColumn(label: Text('ลูกค้า')),
-                  DataColumn(label: Text('ยอดเงิน', textAlign: TextAlign.right)),
-                  DataColumn(label: Text('พิมพ์')),
-                ],
-                rows: logs.map((log) {
-                  return _buildDataRow(context, ref, log); // ส่ง ref เข้าไป
-                }).toList(),
+          // ข้อมูลสำหรับ Pagination
+          final lastPage = meta['last_page'] as int? ?? 1;
+          final total = meta['total'] as int? ?? 0;
+
+          return Column(
+            children: [
+              // --- ส่วนตารางรายการ ---
+              Expanded(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.vertical,
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: DataTable(
+                      columnSpacing: 20,
+                      columns: const [
+                        DataColumn(label: Text('เวลา')),
+                        DataColumn(label: Text('ลูกค้า')),
+                        DataColumn(label: Text('ยอดเงิน', textAlign: TextAlign.right)),
+                        DataColumn(label: Text('พิมพ์')),
+                      ],
+                      rows: logs.map((log) {
+                        return _buildDataRow(context, ref, log);
+                      }).toList(),
+                    ),
+                  ),
+                ),
               ),
-            ),
+
+              // --- ส่วนปุ่มเปลี่ยนหน้า (Pagination) ---
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.withOpacity(0.2), 
+                      blurRadius: 4, 
+                      offset: const Offset(0, -2)
+                    )
+                  ],
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    // ปุ่มย้อนกลับ
+                    ElevatedButton.icon(
+                      onPressed: currentPage > 1
+                          ? () => ref.read(sellHistoryPageProvider.notifier).state--
+                          : null,
+                      icon: const Icon(Icons.chevron_left),
+                      label: const Text("ก่อนหน้า"),
+                    ),
+
+                    // แสดงเลขหน้า
+                    Column(
+                      children: [
+                        Text("หน้า $currentPage / $lastPage", 
+                            style: const TextStyle(fontWeight: FontWeight.bold)),
+                        Text("รวม $total รายการ", 
+                            style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                      ],
+                    ),
+
+                    // ปุ่มถัดไป
+                    ElevatedButton(
+                      onPressed: currentPage < lastPage
+                          ? () => ref.read(sellHistoryPageProvider.notifier).state++
+                          : null,
+                      child: Row(
+                        children: const [
+                          Text("ถัดไป"),
+                          SizedBox(width: 4),
+                          Icon(Icons.chevron_right),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           );
         },
       ),
     );
   }
 
+  // --- สร้างแถวในตาราง ---
   DataRow _buildDataRow(BuildContext context, WidgetRef ref, dynamic log) {
     final dateStr = log['created_at'] ?? '';
     final dateDisplay = dateStr.isNotEmpty
         ? DateFormat('dd/MM HH:mm').format(DateTime.parse(dateStr))
         : '-';
 
-    final customerName = log['customer']['name'] ?? 'ทั่วไป';
+    // เช็ค null safety ให้ดี
+    final customerName = log['customer']?['name'] ?? 'ทั่วไป';
     final total = double.tryParse(log['total_price'].toString()) ?? 0.0;
 
     return DataRow(cells: [
@@ -90,6 +165,7 @@ class SellHistoryScreen extends ConsumerWidget {
     ]);
   }
 
+  // --- ฟังก์ชันสั่งพิมพ์ซ้ำ ---
   Future<void> _rePrint(BuildContext context, WidgetRef ref, dynamic logData) async {
     try {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -97,16 +173,15 @@ class SellHistoryScreen extends ConsumerWidget {
 
       final itemsRaw = logData['items'] as List<dynamic>? ?? [];
       
-      // เรียกใช้ Helper Function ผ่าน Service Provider
       final service = ref.read(sellHistoryServiceProvider);
       final itemsToPrint = service.convertLogToCartItems(itemsRaw);
 
       if (itemsToPrint.isEmpty) throw Exception("ไม่พบรายการสินค้าในบิลนี้");
-      print(logData);
+      
       await PrintService().printReceipt(
         context,
         itemsToPrint,
-        customerName: logData['customer']['name'],
+        customerName: logData['customer']?['name'],
       );
 
     } catch (e) {

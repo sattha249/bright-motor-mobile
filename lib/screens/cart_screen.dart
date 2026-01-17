@@ -42,7 +42,6 @@ class CartScreen extends ConsumerWidget {
                       isDense: true,
                       items: const [
                         DropdownMenuItem(value: PaymentTerm.cash, child: Text("เงินสด (Cash)")),
-                        DropdownMenuItem(value: PaymentTerm.weekly, child: Text("เครดิต 1 สัปดาห์")),
                         DropdownMenuItem(value: PaymentTerm.monthly, child: Text("เครดิต 1 เดือน")),
                       ],
                       onChanged: (value) {
@@ -88,19 +87,38 @@ class CartScreen extends ConsumerWidget {
                             ],
                           ),
                           trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              // แสดงราคาสุทธิ
-                              Text(
-                                "฿${item.totalSoldPrice.toStringAsFixed(2)}",
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.blue),
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.delete, color: Colors.red),
-                                onPressed: () => notifier.removeItem(item.product),
-                              ),
-                            ],
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // แสดงราคาสุทธิ
+                          Text(
+                            "฿${item.totalSoldPrice.toStringAsFixed(2)}",
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.blue),
                           ),
+                          
+                          const SizedBox(width: 4), // เว้นระยะนิดนึง
+
+                          // [แก้ไข] เปลี่ยนจาก IconButton เป็น InkWell เพื่อรองรับ LongPress
+                          Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(20), // ให้ Effect เป็นวงกลม
+                              onTap: () {
+                                // กด 1 ครั้ง: ลดจำนวน 1 ชิ้น
+                                // (ต้องมีฟังก์ชัน decreaseItem ใน Notifier)
+                                notifier.decreaseItem(item.product);
+                              },
+                              onLongPress: () {
+                                // กดค้าง: แสดง Dialog ยืนยันลบทั้งหมด
+                                _showDeleteConfirmDialog(context, notifier, item);
+                              },
+                              child: const Padding(
+                                padding: EdgeInsets.all(8.0),
+                                child: Icon(Icons.delete, color: Colors.red),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                         ),
                         
                         // Checkbox (เฉพาะเครดิต)
@@ -254,6 +272,30 @@ class CartScreen extends ConsumerWidget {
   }
 }
 
+void _showDeleteConfirmDialog(BuildContext context, CartNotifier notifier, CartItem item) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("ยืนยันการลบ"),
+        content: Text("คุณต้องการลบสินค้า '${item.product.description}' ออกจากตะกร้าทั้งหมดหรือไม่?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context), // ปิด Dialog
+            child: const Text("ยกเลิก", style: TextStyle(color: Colors.grey)),
+          ),
+          TextButton(
+            onPressed: () {
+              // ลบสินค้าชิ้นนั้นทั้งหมด (Logic เดิม)
+              notifier.removeItem(item.product);
+              Navigator.pop(context); // ปิด Dialog
+            },
+            child: const Text("ลบทั้งหมด", style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+  
 class _DiscountButton extends StatelessWidget {
   final String label;
   final VoidCallback onPressed;

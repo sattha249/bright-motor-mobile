@@ -28,31 +28,41 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
 
   CartNotifier(this.sellService, this.ref) : super([]);
 
-  void addItem(Product product) {
+  // [แก้ไข 1] เพิ่ม parameter quantity ให้รับค่าจำนวนได้ (default = 1)
+  // เพื่อรองรับการวนลูปเพิ่ม หรือสั่งเพิ่มทีเดียวหลายชิ้น
+  void addItem(Product product, {int quantity = 1}) {
     final existingIndex = state.indexWhere((item) => item.product.id == product.id);
     if (existingIndex >= 0) {
       final oldItem = state[existingIndex];
-      final newItem = oldItem.copyWith(quantity: oldItem.quantity + 1);
+      // บวกเพิ่มตาม quantity ที่ส่งมา
+      final newItem = oldItem.copyWith(quantity: oldItem.quantity + quantity);
       state = [...state.sublist(0, existingIndex), newItem, ...state.sublist(existingIndex + 1)];
     } else {
-      state = [...state, CartItem(product: product, quantity: 1)];
+      // สร้างรายการใหม่ตาม quantity ที่ส่งมา
+      state = [...state, CartItem(product: product, quantity: quantity)];
     }
-    // หมายเหตุ: เมื่อเพิ่มสินค้า อาจจะต้อง Reset ส่วนลดหรือไม่? 
-    // ปกติถ้าเพิ่มของ ยอดเปลี่ยน ส่วนลดแบบระบุจำนวนเงินอาจเพี้ยน แต่ % ยังได้อยู่
-    // ในที่นี้ขอคงค่าส่วนลดเดิมไว้ก่อน
   }
 
-  void removeItem(Product product) {
+  // [เพิ่มใหม่ 2] ฟังก์ชันลดจำนวนทีละ 1 (สำหรับ Single Tap)
+  void decreaseItem(Product product) {
     final existingIndex = state.indexWhere((item) => item.product.id == product.id);
     if (existingIndex >= 0) {
       final oldItem = state[existingIndex];
       if (oldItem.quantity > 1) {
+        // ถ้ามีมากกว่า 1 ให้ลดลง 1
         final newItem = oldItem.copyWith(quantity: oldItem.quantity - 1);
         state = [...state.sublist(0, existingIndex), newItem, ...state.sublist(existingIndex + 1)];
       } else {
+        // ถ้าเหลือ 1 แล้วกดลด ให้ลบออกจากตะกร้าเลย
         state = [...state]..removeAt(existingIndex);
       }
     }
+  }
+
+  // [แก้ไข 3] เปลี่ยนหน้าที่เป็น "ลบทั้งหมด" (สำหรับ Long Press หรือปุ่ม Delete ในหน้า ProductSearch)
+  void removeItem(Product product) {
+    // ลบสินค้านั้นออกจาก List ทันที ไม่สน quantity
+    state = state.where((item) => item.product.id != product.id).toList();
   }
 
   void togglePaid(int index, bool value) {
@@ -66,7 +76,6 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
   // 1. ใช้ส่วนลดแบบเปอร์เซ็นต์ (Apply กับทุกชิ้น)
   void applyPercentDiscount(double percent) {
     state = state.map((item) {
-      // คำนวณส่วนลดต่อชิ้น
       final discountPerItem = item.price * (percent / 100);
       return item.copyWith(discountValue: discountPerItem);
     }).toList();
@@ -74,20 +83,11 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
 
   // 2. ใช้ส่วนลดแบบระบุจำนวนเงิน (กระจายตามสัดส่วนราคาสินค้า)
   void applyFixedDiscount(double totalDiscountAmount) {
-    // หายอดรวมราคาตั้งต้น (ก่อนลด) ของทั้งตะกร้า
     double totalOriginalPrice = state.fold(0.0, (sum, item) => sum + (item.price * item.quantity));
 
     if (totalOriginalPrice == 0) return;
 
     state = state.map((item) {
-      // สัดส่วนมูลค่าของสินค้านี้ ต่อ ยอดรวมทั้งหมด
-      // (ราคาต่อชิ้น / ราคารวมทั้งหมด) * ยอดส่วนลดรวม
-      // สูตรนี้จะได้ส่วนลด "ต่อ 1 ชิ้น"
-      
-      // ตัวอย่าง: ของ A ราคา 100 มี 2 ชิ้น (มูลค่า 200), ของ B ราคา 800 มี 1 ชิ้น (มูลค่า 800). รวม 1000.
-      // ส่วนลด 100 บาท.
-      // Item A (ต่อชิ้น) discount = (100 / 1000) * 100 = 10 บาท.
-      
       final discountPerItem = (item.price / totalOriginalPrice) * totalDiscountAmount;
       return item.copyWith(discountValue: discountPerItem);
     }).toList();

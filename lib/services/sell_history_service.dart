@@ -8,7 +8,7 @@ import 'package:http/http.dart' as http;
 
 // 1. สร้าง Interface
 abstract class SellHistoryService {
-  Future<List<dynamic>> getSellLogs({required int truckId});
+  Future<Map<String, dynamic>> getSellLogs({required int truckId, int page = 1});
   List<CartItem> convertLogToCartItems(List<dynamic> itemsData);
 }
 
@@ -28,10 +28,10 @@ class SellHistoryServiceImpl implements SellHistoryService {
   String get baseUrl => dotenv.env['API_URL'] ?? 'http://10.0.2.2:3333';
 
   @override
-  Future<List<dynamic>> getSellLogs({required int truckId}) async {
+  Future<Map<String, dynamic>> getSellLogs({required int truckId, int page = 1}) async {
     try {
       final token = await preferences.getToken();
-      final url = '$baseUrl/sell-logs?truckId=$truckId';
+      final url = '$baseUrl/sell-logs?truck_id=$truckId&page=$page';
 
       final response = await defaultHttpClient().get(
         Uri.parse(url),
@@ -45,14 +45,24 @@ class SellHistoryServiceImpl implements SellHistoryService {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         
-        // รองรับทั้งแบบ return List ตรงๆ หรือ return { data: [...] }
-        if (data is Map<String, dynamic> && data.containsKey('data')) {
-          return data['data'] as List<dynamic>;
+        // 2. [แก้ไข] Return ข้อมูลทั้งก้อน เพื่อให้ UI เข้าถึง key 'meta' ได้
+        if (data is Map<String, dynamic>) {
+          // กรณี API มาตามมาตรฐาน: { "data": [...], "meta": {...} }
+          return data; 
         } else if (data is List) {
-          return data;
+          // กรณี API ส่งมาแค่ List เพียวๆ (กันเหนียวไว้ก่อน)
+          // เราต้องห่อมันเพื่อให้หน้า UI ไม่พังเมื่อพยายามเข้าถึง ['meta']
+          return {
+            'data': data,
+            'meta': {
+              'current_page': 1,
+              'last_page': 1,
+              'total': data.length
+            }
+          };
         }
         
-        return [];
+        return {'data': [], 'meta': {}};
       } else {
         throw Exception('Failed to load sell logs: ${response.statusCode} ${response.body}');
       }
