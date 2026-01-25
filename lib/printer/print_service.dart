@@ -31,7 +31,7 @@ class PrintService {
   Future<Uint8List> _captureWidgetToImage(GlobalKey key) async {
     try {
       RenderRepaintBoundary boundary = key.currentContext!.findRenderObject() as RenderRepaintBoundary;
-      // pixelRatio 2.0 ให้ภาพชัดเจนสำหรับ QR Code แต่อย่าเยอะเกินเดี๋ยวไฟล์ใหญ่
+      // pixelRatio 3.0 ให้ภาพชัดเจน
       ui.Image image = await boundary.toImage(pixelRatio: 3.0); 
       ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
       return byteData!.buffer.asUint8List();
@@ -41,11 +41,12 @@ class PrintService {
     }
   }
 
+  // [แก้ไข] เปลี่ยน parameter เป็นรับ isCredit เพื่อใช้ทำ Logic
   Future<void> printReceipt(
     BuildContext context,
     List<CartItem> cartItems, {
     String? customerName,
-    String? paymentType,
+    bool isCredit = false, // เปลี่ยนจาก paymentType เป็น isCredit
   }) async {
     try {
       if ((await bluetooth.isConnected) != true) {
@@ -57,9 +58,9 @@ class PrintService {
       bool useImageMode = await preferences.getPrinterImageMode();
 
       if (useImageMode) {
-        await _printReceiptAsImage(context, cartItems, customerName: customerName, paymentType: paymentType);
+        await _printReceiptAsImage(context, cartItems, customerName: customerName, isCredit: isCredit);
       } else {
-        await _printReceiptAsText(context, cartItems, customerName: customerName, paymentType: paymentType);
+        await _printReceiptAsText(context, cartItems, customerName: customerName, isCredit: isCredit);
       }
 
       _showDebugMsg(context, "พิมพ์เสร็จเรียบร้อย");
@@ -70,12 +71,12 @@ class PrintService {
     }
   }
 
-  // --- โหมดปกติ (Text Mode) ---
+  // --- โหมดปกติ (Text Mode) [แก้ไขตาม requirement] ---
   Future<void> _printReceiptAsText(
     BuildContext context,
     List<CartItem> cartItems, {
     String? customerName,
-    String? paymentType,
+    required bool isCredit,
   }) async {
       int codePage = await preferences.getPrinterCodePage();
       
@@ -95,6 +96,10 @@ class PrintService {
       if (customerName != null) {
         await bluetooth.writeBytes(Tis620Helper.text("ลูกค้า: $customerName"));
       }
+
+      // [เพิ่ม] ประเภทการชำระ
+      String paymentLabel = isCredit ? "เครดิต" : "เงินสด";
+      await bluetooth.writeBytes(Tis620Helper.text("การชำระเงิน: $paymentLabel"));
       
       await bluetooth.writeBytes(Tis620Helper.text("--------------------------------"));
 
@@ -119,25 +124,45 @@ class PrintService {
       await bluetooth.writeBytes(Tis620Helper.text("ขอบคุณที่ใช้บริการ", align: 1));
       await bluetooth.printNewLine();
 
-      await _printQrCodeIfExists(context); // พิมพ์ QR แยกในโหมด Text
+      await _printQrCodeIfExists(context);
+
+      // [เพิ่ม] ข้อความแจ้งเตือนดอกเบี้ย (เฉพาะเครดิต)
+        await bluetooth.printNewLine();
+        await bluetooth.writeBytes(Tis620Helper.text(
+          "*** หมายเหตุ ***", 
+          align: 1, isBold: true
+        ));
+        await bluetooth.writeBytes(Tis620Helper.text(
+          "หากลูกค้าชำระล่าช้าหรือเกินกำหนดระยะเวลา 1 เดือน นับตั้งแต่วันที่ลูกค้ารับสินค้าครบถ้วน ทางร้านจะปรับอัตตราดอกเบี้ยขึ้น 8% จากราคาสินค้าต่อเดือน (เฉพาะบิลเครดิต)",
+          align: 0 // ชิดซ้ายเพื่อให้ตัดคำอ่านง่ายขึ้นใน Text Mode
+        ));
+        await bluetooth.printNewLine();
+
+
+      // พื้นที่เซ็นชื่อ (Text Mode)
+      await bluetooth.printNewLine();
+      await bluetooth.writeBytes(Tis620Helper.text("................................", align: 1));
+      await bluetooth.writeBytes(Tis620Helper.text("ลายเซ็นต์", align: 1));
 
       bluetooth.printNewLine();
       bluetooth.printNewLine();
       bluetooth.paperCut();
   }
 
-  // --- โหมดรูปภาพ (Image Mode) [แก้ไขใหม่] ---
+  // --- โหมดรูปภาพ (Image Mode) [แก้ไขตาม requirement] ---
   Future<void> _printReceiptAsImage(
     BuildContext context,
     List<CartItem> cartItems, {
     String? customerName,
-    String? paymentType,
+    required bool isCredit,
   }) async {
     final GlobalKey receiptKey = GlobalKey();
     double baseFontSize = await preferences.getPrinterFontSize();
-    double headerSize = baseFontSize * 1.4; // หัวข้อใหญ่กว่าปกติ 40%
-    double normalSize = baseFontSize;       // ขนาดปกติ
-    double smallSize = baseFontSize * 0.8;  // ขนาดเล็ก (เช่น รายละเอียด)
+    double headerSize = baseFontSize * 1.4;
+    double normalSize = baseFontSize;
+    double smallSize = baseFontSize * 0.8; 
+    // [เพิ่ม] ขนาดตัวอักษรสำหรับ Warning ให้เล็กหน่อยจะได้ไม่กินที่มาก
+    double warningSize = baseFontSize * 0.7; 
 
     File? qrFile;
     try {
@@ -157,6 +182,9 @@ class PrintService {
     final now = DateTime.now();
     final dateStr = "${now.day}/${now.month}/${now.year} ${now.hour}:${now.minute}";
 
+    // Logic คำสั่ง isCredit
+    String paymentLabel = isCredit ? "เครดิต" : "เงินสด";
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -169,7 +197,7 @@ class PrintService {
               key: receiptKey,
               child: Container(
                 color: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 10.0), // Reduce side padding slightly
+                padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 10.0),
                 width: 380, 
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -183,6 +211,9 @@ class PrintService {
                     if (customerName != null) 
                       Text("ลูกค้า: $customerName", style: TextStyle(fontSize: normalSize, fontWeight: FontWeight.bold, color: Colors.black)),
                     
+                    // [เพิ่ม] แสดงประเภทการชำระเงิน
+                    Text("การชำระเงิน: $paymentLabel", style: TextStyle(fontSize: normalSize, color: Colors.black)),
+
                     Divider(color: Colors.black),
                     
                     ...cartItems.map((item) => Padding(
@@ -226,9 +257,9 @@ class PrintService {
                       Center(
                         child: Container(
                           color: Colors.white,
-                          padding: EdgeInsets.all(5), // Add padding for quiet zone
-                          width: 380, // ขยายความกว้าง
-                          height: 380,
+                          padding: EdgeInsets.all(5),
+                          width: 300, // ปรับขนาดตามความเหมาะสม
+                          height: 300,
                           child: Image.file(
                             qrFile,
                             fit: BoxFit.cover, 
@@ -238,15 +269,31 @@ class PrintService {
                       ),
                     ],
 
-                    // --- [ส่วนที่เพิ่ม] เส้นจุดไข่ปลาและลายเซ็นต์ ---
-                    SizedBox(height: 80), // เว้นระยะห่างด้านบนให้พอดีกับการเซ็น
+                    // [เพิ่ม] ข้อความแจ้งเตือนดอกเบี้ย (เฉพาะเครดิต)
+                      SizedBox(height: 20),
+                      Container(
+                        padding: const EdgeInsets.all(8.0),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.black, width: 0.5),
+                          borderRadius: BorderRadius.circular(4)
+                        ),
+                        child: Text(
+                          "หากลูกค้าชำระล่าช้าหรือเกินกำหนดระยะเวลา 1 เดือน นับตั้งแต่วันที่ลูกค้ารับสินค้าครบถ้วน ทางร้านจะปรับอัตตราดอกเบี้ยขึ้น 8% จากราคาสินค้าต่อเดือน (เฉพาะบิลเครดิต)",
+                          style: TextStyle(fontSize: warningSize*1.3, color: Colors.black),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+
+
+                    // เส้นจุดไข่ปลาและลายเซ็นต์
+                    SizedBox(height: 60), // ระยะห่างสำหรับเซ็น
                     Center(
                       child: Text(
                         "................................................................", 
                         style: TextStyle(
                           fontSize: normalSize, 
                           color: Colors.black, 
-                          letterSpacing: 3, // เพิ่มระยะห่างระหว่างจุดให้ดูเหมือนเส้นประ
+                          letterSpacing: 3,
                           fontWeight: FontWeight.bold
                         ),
                         maxLines: 1,
@@ -264,8 +311,7 @@ class PrintService {
                         )
                       )
                     ),
-                    // ------------------------------------------------
-
+                    
                     SizedBox(height: 30),
                   ],
                 ),
@@ -276,6 +322,7 @@ class PrintService {
       },
     );
 
+    // ... ส่วนการ Capture และ Print Image คงเดิม ...
     await Future.delayed(const Duration(milliseconds: 800));
 
     try {
@@ -284,10 +331,7 @@ class PrintService {
 
       final img.Image? originalImage = img.decodeImage(pngBytes);
       if (originalImage != null) {
-        // Use 384 for standard 58mm printer width (usually 384 dots)
         final img.Image resizedImage = img.copyResize(originalImage, width: 384, interpolation: img.Interpolation.cubic);
-        
-        // Thresholding makes it purely black and white, increasing contrast for scanners
         final img.Image bwImage = img.luminanceThreshold(resizedImage, threshold: 0.5);
 
         await bluetooth.writeBytes(Uint8List.fromList([0x1B, 0x40])); 
@@ -315,6 +359,7 @@ class PrintService {
       throw e;
     }
   }
+
   // --- Helper Methods เดิม ---
   Future<void> findThaiCodePage(BuildContext context) async {
     if ((await bluetooth.isConnected) != true) return;
@@ -332,7 +377,6 @@ class PrintService {
   }
 
   Future<void> _printQrCodeIfExists(BuildContext context) async {
-    // ฟังก์ชันนี้เก็บไว้ใช้กับ Text Mode เท่านั้น
     try {
       final directory = await getApplicationDocumentsDirectory();
       final file = File('${directory.path}/receipt_qrcode.png');

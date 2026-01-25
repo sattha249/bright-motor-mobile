@@ -4,19 +4,35 @@ import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 // [แก้ไข] รับ items เข้ามาทาง Constructor
-Future<dynamic> launchCheckoutCompleteScreen(BuildContext context, List<CartItem> items, String? customerName) {
+Future<dynamic> launchCheckoutCompleteScreen(
+  BuildContext context, 
+  List<CartItem> items, 
+  String? customerName,
+  {bool isCredit = false} // รับค่าตรงนี้
+) {
   return Navigator.of(context).push(
     MaterialPageRoute(
-      builder: (context) => CompleteScreen(items: items, customerName: customerName), 
+      builder: (context) => CompleteScreen(
+        items: items, 
+        customerName: customerName, 
+        isCredit: isCredit // ส่งต่อให้ Widget
+      ), 
       fullscreenDialog: true
     )
   );
 }
 
 class CompleteScreen extends ConsumerWidget {
-  final List<CartItem> items; // [เพิ่ม] รับรายการสินค้าที่ขายไปแล้ว
+  final List<CartItem> items;
   final String? customerName;
-  const CompleteScreen({super.key, required this.items,this.customerName});
+  final bool isCredit; // [เพิ่ม] ตัวแปรรับค่า
+
+  const CompleteScreen({
+    super.key, 
+    required this.items, 
+    this.customerName,
+    required this.isCredit // [เพิ่ม] รับค่าจาก Constructor
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -51,11 +67,14 @@ class CompleteScreen extends ConsumerWidget {
                 const SizedBox(width: 16),
                 ElevatedButton.icon(
                   onPressed: () {
-                    PrintService().printReceipt(context, items,customerName: customerName);
-                    // [แก้ไข] ส่ง items ไปพิมพ์ (PrintService ต้องรองรับ List<CartItem>)
-                    // PrintService().printReceipt(items); 
+                    // [แก้ไข] ส่ง isCredit ไปให้ PrintService
+                    PrintService().printReceipt(
+                      context, 
+                      items,
+                      customerName: customerName,
+                      isCredit: isCredit // ส่งค่าไปที่นี่
+                    );
                     
-                    // หมายเหตุ: คุณต้องไปแก้ PrintService ให้รับ List<CartItem> ด้วยนะครับ
                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("ส่งคำสั่งพิมพ์...")));
                   },
                   icon: const Icon(Icons.print),

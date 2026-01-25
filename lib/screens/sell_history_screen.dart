@@ -139,15 +139,16 @@ class SellHistoryScreen extends ConsumerWidget {
   }
 
   // --- สร้างแถวในตาราง ---
-  DataRow _buildDataRow(BuildContext context, WidgetRef ref, dynamic log) {
+ DataRow _buildDataRow(BuildContext context, WidgetRef ref, dynamic log) {
     final dateStr = log['created_at'] ?? '';
     final dateDisplay = dateStr.isNotEmpty
         ? DateFormat('dd/MM HH:mm').format(DateTime.parse(dateStr))
         : '-';
 
-    // เช็ค null safety ให้ดี
     final customerName = log['customer']?['name'] ?? 'ทั่วไป';
-    final total = double.tryParse(log['total_price'].toString()) ?? 0.0;
+    // [เพิ่ม] แปลงยอดเงินให้เป็น double ที่ถูกต้อง
+    final total = double.tryParse(log['total_sold_price'].toString()) ?? 
+                  double.tryParse(log['total_price'].toString()) ?? 0.0;
 
     return DataRow(cells: [
       DataCell(Text(dateDisplay)),
@@ -164,10 +165,10 @@ class SellHistoryScreen extends ConsumerWidget {
       ),
     ]);
   }
-
   // --- ฟังก์ชันสั่งพิมพ์ซ้ำ ---
-  Future<void> _rePrint(BuildContext context, WidgetRef ref, dynamic logData) async {
+Future<void> _rePrint(BuildContext context, WidgetRef ref, dynamic logData) async {
     try {
+      print("rePrint($logData)");
       ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("กำลังเตรียมข้อมูลพิมพ์...")));
 
@@ -178,10 +179,20 @@ class SellHistoryScreen extends ConsumerWidget {
 
       if (itemsToPrint.isEmpty) throw Exception("ไม่พบรายการสินค้าในบิลนี้");
       
+      // [เพิ่ม] ดึงค่า is_credit จาก Log มาเช็ค
+      // API น่าจะส่งมาเป็น string ("week", "month") หรือ null/false
+      final isCreditVal = logData['is_credit']; 
+      bool isCreditBool = false;
+
+      if (isCreditVal != null && isCreditVal != false && isCreditVal != "cash") {
+         isCreditBool = true;
+      }
+      
       await PrintService().printReceipt(
         context,
         itemsToPrint,
         customerName: logData['customer']?['name'],
+        isCredit: isCreditBool, // [แก้ไข] ส่งค่า isCredit ไปด้วย
       );
 
     } catch (e) {

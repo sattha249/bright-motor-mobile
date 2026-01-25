@@ -192,49 +192,49 @@ class CartScreen extends ConsumerWidget {
                     ),
                   ],
                 ),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
-                    backgroundColor: Colors.blue,
-                  ),
-                  onPressed: cartItems.isEmpty ? null : () async {
-                    try {
-                        final truck = ref.read(currentTruckProvider);
-                        if (truck == null || truck.truckId == null) {
-                           ScaffoldMessenger.of(context).showSnackBar(
-                             const SnackBar(content: Text("ไม่พบข้อมูลรถ (Truck ID Missing)"), backgroundColor: Colors.red)
-                           );
-                           return;
-                        }
+ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                      backgroundColor: Colors.blue,
+                    ),
+                    onPressed: cartItems.isEmpty ? null : () async {
+                      try {
+                          final truck = ref.read(currentTruckProvider);
+                          if (truck == null || truck.truckId == null) {
+                             ScaffoldMessenger.of(context).showSnackBar(
+                               const SnackBar(content: Text("ไม่พบข้อมูลรถ (Truck ID Missing)"), backgroundColor: Colors.red)
+                             );
+                             return;
+                          }
 
-                        // บันทึกการขาย
-                        await notifier.submit(
-                          truckId: truck.truckId!, 
-                          customerId: customer.id
-                        );
-                        
-                        if (context.mounted) {
-                          // [แก้ไข] 1. ไปหน้า Complete ก่อน (ส่ง list ที่ clone ไว้ หรือดึงจาก provider ในหน้าถัดไปก็ได้ แต่ส่งไปชัวร์สุด)
-                          final soldItems = List<CartItem>.from(cartItems); // Clone ไว้ก่อน clear
-                          await launchCheckoutCompleteScreen(context, soldItems, customer.name,);
+                          // บันทึกการขาย
+                          await notifier.submit(
+                            truckId: truck.truckId!, 
+                            customerId: customer.id
+                          );
                           
-                          // [แก้ไข] 2. พอกลับมาจากหน้า Complete (หรือกดปิดในหน้านั้น) ค่อยเคลียร์
-                          notifier.clear(); 
-                          
-                          // [แก้ไข] 3. กลับไปหน้าแรกสุด (Home) หรือหน้าที่ต้องการ
-                          // Navigator.pop(context); // อันนี้จะกลับไป CategoryScreen
-                          // ถ้าอยากกลับไปหน้า Home เลยให้ใช้ popUntil
-                          // Navigator.of(context).popUntil((route) => route.isFirst);
-                        }
-                    } catch (e) {
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red));
-                        }
-                    }
-                  },
-                  child: const Text("ยืนยันการขาย", style: TextStyle(color: Colors.white, fontSize: 18)),
-                ),
-              ],
+                          if (context.mounted) {
+                            final soldItems = List<CartItem>.from(cartItems); // Clone ไว้ก่อน clear
+                            
+                            // [แก้ไข] ส่ง isCredit ไปให้หน้า CompleteScreen
+                            // (สมมติว่า launchCheckoutCompleteScreen รับ named parameter isCredit)
+                            await launchCheckoutCompleteScreen(
+                              context, 
+                              soldItems, 
+                              customer.name,
+                              isCredit: isCreditMode, // ส่งค่านี้ไป
+                            );
+                            
+                            notifier.clear(); 
+                          }
+                      } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red));
+                          }
+                      }
+                    },
+                    child: const Text("ยืนยันการขาย", style: TextStyle(color: Colors.white, fontSize: 18)),
+                  ),],
             ),
           ),
         ],
