@@ -18,6 +18,8 @@ class CartScreen extends ConsumerWidget {
     
     final paymentTerm = ref.watch(paymentTermProvider);
     final totalAmount = ref.watch(cartGrandTotalProvider);
+    final truck = ref.watch(currentTruckProvider);
+    final salespersonName = truck?.fullName ?? '-';
 
     final isCreditMode = paymentTerm != PaymentTerm.cash;
 
@@ -223,6 +225,9 @@ ElevatedButton(
                               soldItems, 
                               customer.name,
                               isCredit: isCreditMode, // ส่งค่านี้ไป
+                              customerAddress: customer.address, // [ส่ง] ที่อยู่
+                              customerPhone: customer.tel,     // [ส่ง] เบอร์โทร
+                              salespersonName: salespersonName,  // [ส่ง] ชื่อคนขาย (จาก truck provider)
                             );
                             
                             notifier.clear(); 

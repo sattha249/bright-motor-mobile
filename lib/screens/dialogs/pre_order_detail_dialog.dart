@@ -7,6 +7,7 @@ import 'package:brightmotor_store/services/pre_order_service.dart';
 import 'package:brightmotor_store/services/sell_service.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:brightmotor_store/providers/truck_provider.dart';
 
 class PreOrderDetailDialog extends ConsumerStatefulWidget {
   final int preOrderId;
@@ -256,21 +257,30 @@ class _PreOrderDetailDialogState extends ConsumerState<PreOrderDetailDialog> {
       await ref.read(sellServiceProvider).createSellLogFromPreOrder(sellLogPayload);
 
       // 5. Prepare data for Print (Complete Screen)
+      final customerData = rawJson['customer'] ?? {};
+
+      final String custAddr = customerData['address'] ?? '-';
+      final String custPhone = customerData['phone'] ?? customerData['tel'] ?? '-';
+
+      final truckData = rawJson['truck'] ?? {};
+      // final userData = truckData['user'] ?? rawJson['user'] ?? {};
+      final currentTruck = ref.read(currentTruckProvider);
+      final String saleName = currentTruck?.fullName ?? '-';
+
+      final bool isCreditBool = (rawJson['is_credit'] != null && rawJson['is_credit'] != 'cash');
+
       final List<CartItem> cartItemsForPrint = (rawJson['items'] as List).map((item) {
         final productData = item['product'] ?? {};
         
         final product = Product(
           id: item['product_id'],
-          
           description: productData['description'] ?? 'สินค้า',
           brand: productData['brand'] ?? '',
           model: productData['model'] ?? '',
           category: productData['category'] ?? '',
           unit: productData['unit'] ?? '',
-          
           costPrice: (productData['cost_price'] ?? '0').toString(), 
           sellPrice: (item['sold_price'] ?? '0').toString(), 
-          
           quantity: 0
         );
 
@@ -291,7 +301,11 @@ class _PreOrderDetailDialogState extends ConsumerState<PreOrderDetailDialog> {
         await launchCheckoutCompleteScreen(
           context, 
           cartItemsForPrint, 
-           _safeGetCustomerName(PreOrder.fromJson(rawJson))
+           _safeGetCustomerName(PreOrder.fromJson(rawJson)),
+           customerAddress: custAddr,
+          customerPhone: custPhone,
+          salespersonName: saleName,
+          isCredit: isCreditBool
         );
       }
 

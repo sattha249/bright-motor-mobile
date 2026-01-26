@@ -370,29 +370,37 @@ class _PrinterPageState extends ConsumerState<PrinterPage> {
             const SizedBox(height: 10),
             ElevatedButton.icon(
               onPressed: isConnected 
-                  ? () => PrintService().printReceipt(context, [
-                      // Creating dummy items for test
-                      CartItem(
-                        product: Product(
-                          id: 999, 
-                          description: "ทดสอบสินค้า A", 
-                          sellPrice: "100.00", 
-                          category: "", brand: "", model: "", costPrice: "", unit: "",
+                  ? () => PrintService().printReceipt(
+                      context, 
+                      [
+                        // Creating dummy items for test
+                        CartItem(
+                          product: Product(
+                            id: 999, 
+                            description: "ทดสอบสินค้า A", 
+                            sellPrice: "100.00", 
+                            category: "", brand: "", model: "", costPrice: "", unit: "ชิ้น",
+                          ),
+                          quantity: 1, 
+                          discountValue: 0.0
                         ),
-                        quantity: 1, 
-                        discountValue: 0.0
-                      ),
-                      CartItem(
-                        product: Product(
-                          id: 888, 
-                          description: "ทดสอบสินค้า B", 
-                          sellPrice: "50.00", 
-                          category: "", brand: "", model: "", costPrice: "", unit: "",
+                        CartItem(
+                          product: Product(
+                            id: 888, 
+                            description: "ทดสอบสินค้า B", 
+                            sellPrice: "50.00", 
+                            category: "", brand: "", model: "", costPrice: "", unit: "อัน",
+                          ),
+                          quantity: 2, 
+                          discountValue: 0.0
                         ),
-                        quantity: 2, 
-                        discountValue: 0.0
-                      ),
-                    ], customerName: "ลูกค้าทดสอบ")
+                      ], 
+                      customerName: "ลูกค้าทดสอบ (Mock)",
+                      customerAddress: "123 ถ.สุขุมวิท กรุงเทพฯ",
+                      customerPhone: "081-234-5678",
+                      salespersonName: "พนักงานทดสอบ",
+                      isCredit: true
+                    )
                   : null, 
               icon: const Icon(Icons.receipt_long),
               label: const Text("Test Print Receipt (Full)"),

@@ -8,14 +8,21 @@ Future<dynamic> launchCheckoutCompleteScreen(
   BuildContext context, 
   List<CartItem> items, 
   String? customerName,
-  {bool isCredit = false} // รับค่าตรงนี้
+  { bool isCredit = false,
+    String? customerAddress,
+    String? customerPhone, 
+    String? salespersonName, 
+  } 
 ) {
   return Navigator.of(context).push(
     MaterialPageRoute(
       builder: (context) => CompleteScreen(
         items: items, 
         customerName: customerName, 
-        isCredit: isCredit // ส่งต่อให้ Widget
+        isCredit: isCredit, // ส่งต่อให้ Widget
+        customerAddress: customerAddress, 
+        customerPhone: customerPhone,   
+        salespersonName: salespersonName, 
       ), 
       fullscreenDialog: true
     )
@@ -26,12 +33,18 @@ class CompleteScreen extends ConsumerWidget {
   final List<CartItem> items;
   final String? customerName;
   final bool isCredit; // [เพิ่ม] ตัวแปรรับค่า
+  final String? customerAddress;
+  final String? customerPhone;
+  final String? salespersonName;
 
   const CompleteScreen({
     super.key, 
     required this.items, 
     this.customerName,
-    required this.isCredit // [เพิ่ม] รับค่าจาก Constructor
+    required this.isCredit, // [เพิ่ม] รับค่าจาก Constructor
+    this.customerAddress,
+    this.customerPhone,   
+    this.salespersonName,
   });
 
   @override
@@ -72,6 +85,9 @@ class CompleteScreen extends ConsumerWidget {
                       context, 
                       items,
                       customerName: customerName,
+                      customerAddress: customerAddress, 
+                      customerPhone: customerPhone, 
+                      salespersonName: salespersonName, 
                       isCredit: isCredit // ส่งค่าไปที่นี่
                     );
                     

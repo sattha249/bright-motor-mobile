@@ -176,6 +176,9 @@ Future<void> _rePrint(BuildContext context, WidgetRef ref, dynamic logData) asyn
       
       final service = ref.read(sellHistoryServiceProvider);
       final itemsToPrint = service.convertLogToCartItems(itemsRaw);
+      final custAddr = logData['customer']?['address'] ?? '-';
+      final custPhone = logData['customer']?['tel'] ?? '-';
+      final saleName = logData['truck_name'] ?? '-';
 
       if (itemsToPrint.isEmpty) throw Exception("ไม่พบรายการสินค้าในบิลนี้");
       
@@ -192,6 +195,9 @@ Future<void> _rePrint(BuildContext context, WidgetRef ref, dynamic logData) asyn
         context,
         itemsToPrint,
         customerName: logData['customer']?['name'],
+        customerAddress: custAddr,
+        customerPhone: custPhone,
+        salespersonName: saleName,
         isCredit: isCreditBool, // [แก้ไข] ส่งค่า isCredit ไปด้วย
       );
 

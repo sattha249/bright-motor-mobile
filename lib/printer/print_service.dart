@@ -46,9 +46,13 @@ class PrintService {
     BuildContext context,
     List<CartItem> cartItems, {
     String? customerName,
+    String? customerAddress,
+    String? customerPhone, 
+    String? salespersonName,
     bool isCredit = false, // เปลี่ยนจาก paymentType เป็น isCredit
   }) async {
     try {
+      // comment this for test ja
       if ((await bluetooth.isConnected) != true) {
         throw Exception("Bluetooth ยังไม่เชื่อมต่อ");
       }
@@ -57,10 +61,26 @@ class PrintService {
 
       bool useImageMode = await preferences.getPrinterImageMode();
 
-      if (useImageMode) {
-        await _printReceiptAsImage(context, cartItems, customerName: customerName, isCredit: isCredit);
+     if (useImageMode) {
+        await _printReceiptAsImage(
+          context, 
+          cartItems, 
+          customerName: customerName, 
+          customerAddress: customerAddress,
+          customerPhone: customerPhone,     
+          salespersonName: salespersonName, 
+          isCredit: isCredit
+        );
       } else {
-        await _printReceiptAsText(context, cartItems, customerName: customerName, isCredit: isCredit);
+        await _printReceiptAsText(
+          context, 
+          cartItems, 
+          customerName: customerName, 
+          customerAddress: customerAddress, 
+          customerPhone: customerPhone,    
+          salespersonName: salespersonName,
+          isCredit: isCredit
+        );
       }
 
       _showDebugMsg(context, "พิมพ์เสร็จเรียบร้อย");
@@ -76,6 +96,9 @@ class PrintService {
     BuildContext context,
     List<CartItem> cartItems, {
     String? customerName,
+    String? customerAddress,
+    String? customerPhone, 
+    String? salespersonName,
     required bool isCredit,
   }) async {
       int codePage = await preferences.getPrinterCodePage();
@@ -93,13 +116,24 @@ class PrintService {
       await bluetooth.printNewLine();
 
       await bluetooth.writeBytes(Tis620Helper.text("Date: $date $time"));
-      if (customerName != null) {
+     if (customerName != null) {
         await bluetooth.writeBytes(Tis620Helper.text("ลูกค้า: $customerName"));
+      }
+      // [เพิ่ม] ที่อยู่และเบอร์โทร
+      if (customerAddress != null && customerAddress.isNotEmpty) {
+        await bluetooth.writeBytes(Tis620Helper.text("ที่อยู่: $customerAddress"));
+      }
+      if (customerPhone != null && customerPhone.isNotEmpty) {
+        await bluetooth.writeBytes(Tis620Helper.text("โทร: $customerPhone"));
       }
 
       // [เพิ่ม] ประเภทการชำระ
       String paymentLabel = isCredit ? "เครดิต" : "เงินสด";
       await bluetooth.writeBytes(Tis620Helper.text("การชำระเงิน: $paymentLabel"));
+
+      if (salespersonName != null) {
+        await bluetooth.writeBytes(Tis620Helper.text("พนักงานขาย: $salespersonName"));
+      }
       
       await bluetooth.writeBytes(Tis620Helper.text("--------------------------------"));
 
@@ -154,6 +188,9 @@ class PrintService {
     BuildContext context,
     List<CartItem> cartItems, {
     String? customerName,
+    String? customerAddress, 
+    String? customerPhone, 
+    String? salespersonName, 
     required bool isCredit,
   }) async {
     final GlobalKey receiptKey = GlobalKey();
@@ -211,9 +248,15 @@ class PrintService {
                     if (customerName != null) 
                       Text("ลูกค้า: $customerName", style: TextStyle(fontSize: normalSize, fontWeight: FontWeight.bold, color: Colors.black)),
                     
+                    if (customerAddress != null && customerAddress.isNotEmpty)
+                      Text("ที่อยู่: $customerAddress", style: TextStyle(fontSize: smallSize, color: Colors.black)),
+                    if (customerPhone != null && customerPhone.isNotEmpty)
+                      Text("โทร: $customerPhone", style: TextStyle(fontSize: smallSize, color: Colors.black)),
+                    
                     // [เพิ่ม] แสดงประเภทการชำระเงิน
                     Text("การชำระเงิน: $paymentLabel", style: TextStyle(fontSize: normalSize, color: Colors.black)),
-
+                    if (salespersonName != null)
+                      Text("พนักงานขาย: $salespersonName", style: TextStyle(fontSize: normalSize, color: Colors.black)),
                     Divider(color: Colors.black),
                     
                     ...cartItems.map((item) => Padding(
