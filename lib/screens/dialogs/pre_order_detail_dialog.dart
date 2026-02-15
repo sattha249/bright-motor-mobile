@@ -241,6 +241,7 @@ class _PreOrderDetailDialogState extends ConsumerState<PreOrderDetailDialog> {
         "isCredit": (rawJson['is_credit'] == null || rawJson['is_credit'] == 'cash') ? 0 : 1,
         "totalDiscount": rawJson['total_discount'].toString(),
         "totalSoldPrice": rawJson['total_sold_price'].toString(),
+        "isPreOrder": true,
         "items": (rawJson['items'] as List).map((item) {
           return {
             "productId": item['product_id'],
