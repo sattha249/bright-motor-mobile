@@ -18,7 +18,7 @@ class ProductTile extends StatelessWidget {
       child: ListTile(
         title: Text(product.description),
         subtitle: Text(
-          'Cost: ${product.costPrice} | Sell: ${product.sellPrice} ${product.unit}',
+          'ราคา: ${product.sellPrice} / ${product.unit}',
         ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,

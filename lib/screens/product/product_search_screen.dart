@@ -7,6 +7,7 @@ import 'package:brightmotor_store/providers/cart_provider.dart';
 import 'package:brightmotor_store/providers/product_search_provider.dart';
 import 'package:brightmotor_store/screens/cart_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // [เพิ่ม] สำหรับ FilteringTextInputFormatter
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
@@ -19,6 +20,138 @@ class ProductSearchScreen extends HookConsumerWidget {
     this.cartVisible = false,
     this.customer,
   });
+
+  // --- [เพิ่ม] ฟังก์ชันแสดง Dialog ใส่จำนวน (ก๊อปปี้มาจาก CategoryScreen) ---
+  void _showQuantityDialog(BuildContext context, WidgetRef ref, Product product, int maxQty) {
+    // ใช้ StatefulBuilder เพื่อให้ Dialog สามารถ update UI (ตัวเลข) ภายในตัวเองได้
+    showDialog(
+      context: context,
+      builder: (context) {
+        // ตัวแปรเก็บจำนวนที่เลือก เริ่มต้นที่ 1
+        int currentQty = 1;
+        // Controller สำหรับ TextField
+        final TextEditingController controller = TextEditingController(text: '1');
+
+        return StatefulBuilder(
+          builder: (context, setState) {
+            // ฟังก์ชันอัพเดทค่า
+            void updateQty(int newQty) {
+              if (newQty < 0) newQty = 0;
+              if (newQty > maxQty) newQty = maxQty;
+              
+              setState(() {
+                currentQty = newQty;
+                controller.text = newQty.toString();
+                // ย้าย cursor ไปท้ายสุดเวลากดปุ่ม
+                controller.selection = TextSelection.fromPosition(
+                    TextPosition(offset: controller.text.length));
+              });
+            }
+
+            return AlertDialog(
+              title: Text(product.description ?? 'เพิ่มสินค้า'), // แสดงชื่อสินค้า
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text("คงเหลือในสต็อกที่เพิ่มได้: $maxQty ${product.unit}", 
+                      style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // ปุ่มลบ (-)
+                      IconButton(
+                        onPressed: currentQty > 0 
+                            ? () => updateQty(currentQty - 1) 
+                            : null, // disable ถ้าเป็น 0
+                        icon: const Icon(Icons.remove_circle_outline),
+                        color: Colors.red,
+                        iconSize: 32,
+                      ),
+                      
+                      // ช่องกรอกตัวเลข
+                      SizedBox(
+                        width: 80,
+                        child: TextField(
+                          controller: controller,
+                          keyboardType: TextInputType.number,
+                          textAlign: TextAlign.center,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly
+                          ],
+                          decoration: const InputDecoration(
+                            border: OutlineInputBorder(),
+                            contentPadding: EdgeInsets.symmetric(vertical: 8),
+                          ),
+                          onChanged: (value) {
+                            // Logic เมื่อพิมพ์เอง
+                            int? val = int.tryParse(value);
+                            if (val != null) {
+                              // ถ้าพิมพ์เกิน max ให้ปัดลงมาเท่า max ทันที
+                              if (val > maxQty) {
+                                updateQty(maxQty);
+                              } else {
+                                setState(() => currentQty = val);
+                              }
+                            } else {
+                               // กรณีลบจนว่าง ให้ถือเป็น 0
+                               setState(() => currentQty = 0);
+                            }
+                          },
+                        ),
+                      ),
+                      
+                      // ปุ่มบวก (+)
+                      IconButton(
+                        onPressed: currentQty < maxQty 
+                            ? () => updateQty(currentQty + 1) 
+                            : null, // disable ถ้าเต็ม max
+                        icon: const Icon(Icons.add_circle_outline),
+                        color: Colors.green,
+                        iconSize: 32,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('ยกเลิก', style: TextStyle(color: Colors.grey)),
+                ),
+                ElevatedButton(
+                  onPressed: currentQty > 0 // กดได้ต่อเมื่อจำนวน > 0
+                      ? () {
+                          // [สำคัญ] เพิ่มสินค้าเข้าตะกร้าตามจำนวนที่ระบุ
+                          final notifier = ref.read(cartProvider.notifier);
+                          
+                          // ลูปเพิ่มสินค้า
+                          for (int i = 0; i < currentQty; i++) {
+                              notifier.addItem(product);
+                          }
+                          
+                          Navigator.of(context).pop();
+                          
+                          // ซ่อน SnackBar เก่าก่อนโชว์อันใหม่
+                          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('เพิ่ม $currentQty รายการเรียบร้อย'),
+                              backgroundColor: Colors.green,
+                              duration: const Duration(seconds: 1),
+                            ),
+                          );
+                        }
+                      : null, // disable ปุ่มตกลงถ้าจำนวนเป็น 0
+                  child: const Text('ตกลง'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -115,11 +248,9 @@ class ProductSearchScreen extends HookConsumerWidget {
                   itemBuilder: (context, index) {
                     // --- Product Item Logic ---
                     if (index < result.length) {
-                      print("result = ${result.first.toJson()}");
                       final product = result[index];
 
                       // --- [LOGIC from CategoryScreen] ---
-                      
                       // 1. Find if product is already in cart
                       final existingCartItem = cartItems.firstWhere(
                         (item) => item.product.id == product.id,
@@ -136,22 +267,13 @@ class ProductSearchScreen extends HookConsumerWidget {
                       final displayProduct = product.copyWith(quantity: remainingQty);
 
                       return ProductTile(
-                        product: displayProduct, // Pass the calculated product
-                        // actionVisible: cartVisible, // Optional: control visibility if needed
+                        product: displayProduct, 
                         onAction: (_) {
-                          // Check remaining stock before adding
+                          // [แก้ไข] เปลี่ยนมาเรียกใช้ _showQuantityDialog แบบเดียวกับ category_screen
                           if (remainingQty > 0) {
-                            ref.read(cartProvider.notifier).addItem(product);
-                            
-                            ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('เพิ่ม ${product.description} ลงตะกร้า'),
-                                duration: const Duration(milliseconds: 500),
-                              ),
-                            );
+                            _showQuantityDialog(context, ref, product, remainingQty);
                           } else {
-                            // Out of stock feedback
+                            // แจ้งเตือนสินค้าหมด
                             ScaffoldMessenger.of(context).hideCurrentSnackBar();
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
@@ -160,7 +282,7 @@ class ProductSearchScreen extends HookConsumerWidget {
                                   style: const TextStyle(color: Colors.white),
                                 ),
                                 backgroundColor: Colors.red,
-                                duration: const Duration(seconds: 1000),
+                                duration: const Duration(seconds: 1),
                               ),
                             );
                           }
