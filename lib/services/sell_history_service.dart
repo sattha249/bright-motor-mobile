@@ -79,7 +79,6 @@ class SellHistoryServiceImpl implements SellHistoryService {
       final product = Product(
         id: item['product_id'] ?? 0,
         description: item['product']['description'] ?? 'สินค้า',
-        
         category: item['product']['category'] ?? '',
         brand: item['brand'] ?? '',
         model: item['model'] ?? '',
@@ -90,10 +89,11 @@ class SellHistoryServiceImpl implements SellHistoryService {
         
         quantity: 0,
       );
-
+      final discountFromApi = double.tryParse(item['discount']?.toString() ?? '0') ?? 0.0;
       return CartItem(
         product: product,
         quantity: int.tryParse(item['quantity'].toString()) ?? 1,
+        discountValue: discountFromApi, 
       );
     }).toList();
   }
