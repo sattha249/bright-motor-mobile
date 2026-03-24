@@ -84,7 +84,7 @@ class SellHistoryServiceImpl implements SellHistoryService {
         brand: item['brand'] ?? '',
         model: item['model'] ?? '',
         unit: item['unit'] ?? '',
-        
+        discount: item['discount'] ?? 0,
         costPrice: (item['cost_price'] ?? '0').toString(),
         sellPrice: (item['price'] ?? '0').toString(),
         
@@ -94,6 +94,7 @@ class SellHistoryServiceImpl implements SellHistoryService {
       return CartItem(
         product: product,
         quantity: int.tryParse(item['quantity'].toString()) ?? 1,
+        discountValue: double.tryParse(item['discount'].toString()) ?? 0.0,
       );
     }).toList();
   }

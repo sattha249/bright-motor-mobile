@@ -176,7 +176,7 @@ class PrintService {
       // พื้นที่เซ็นชื่อ (Text Mode)
       await bluetooth.printNewLine();
       await bluetooth.writeBytes(Tis620Helper.text("................................", align: 1));
-      await bluetooth.writeBytes(Tis620Helper.text("ลายเซ็นต์", align: 1));
+      await bluetooth.writeBytes(Tis620Helper.text("ผู้รับสินค้า", align: 1));
 
       bluetooth.printNewLine();
       bluetooth.printNewLine();
@@ -328,7 +328,7 @@ class PrintService {
                       ),
 
 
-                    // เส้นจุดไข่ปลาและลายเซ็นต์
+                    // เส้นจุดไข่ปลาและผู้รับสินค้า
                     SizedBox(height: 60), // ระยะห่างสำหรับเซ็น
                     Center(
                       child: Text(
@@ -346,7 +346,7 @@ class PrintService {
                     SizedBox(height: 8),
                     Center(
                       child: Text(
-                        "ลายเซ็นต์", 
+                        "ผู้รับสินค้า", 
                         style: TextStyle(
                           fontSize: normalSize, 
                           fontWeight: FontWeight.bold, 
