@@ -83,7 +83,7 @@ class SellHistoryServiceImpl implements SellHistoryService {
         brand: item['brand'] ?? '',
         model: item['model'] ?? '',
         unit: item['unit'] ?? '',
-        
+        discount: item['discount'] ?? 0,
         costPrice: (item['cost_price'] ?? '0').toString(),
         sellPrice: (item['price'] ?? '0').toString(),
         

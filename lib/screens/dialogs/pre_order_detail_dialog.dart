@@ -281,7 +281,7 @@ class _PreOrderDetailDialogState extends ConsumerState<PreOrderDetailDialog> {
           category: productData['category'] ?? '',
           unit: productData['unit'] ?? '',
           costPrice: (productData['cost_price'] ?? '0').toString(), 
-          sellPrice: (item['sold_price'] ?? '0').toString(), 
+          sellPrice: (item['price'] ?? '0').toString(), 
           quantity: 0
         );
 
