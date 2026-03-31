@@ -228,13 +228,10 @@ class _PreOrderDetailDialogState extends ConsumerState<PreOrderDetailDialog> {
     setState(() => isProcessing = true);
 
     try {
-      // 1. Confirm Status
-      await ref.read(preOrderServiceProvider).confirmPreOrder(preOrderId);
-
-      // 2. Get Raw Data
+      // 1. Get Raw Data
       final rawJson = await ref.read(preOrderServiceProvider).getPreOrderRaw(preOrderId);
 
-      // 3. Transform to Sell Log Payload
+      // 2. Transform to Sell Log Payload
       final sellLogPayload = {
         "truckId": rawJson['truck_id'],
         "customerId": rawJson['customer_id'],
@@ -254,8 +251,30 @@ class _PreOrderDetailDialogState extends ConsumerState<PreOrderDetailDialog> {
         }).toList(),
       };
 
-      // 4. Create Sell Log
-      await ref.read(sellServiceProvider).createSellLogFromPreOrder(sellLogPayload);
+      // 3. Create Sell Log
+      try {
+        await ref.read(sellServiceProvider).createSellLogFromPreOrder(sellLogPayload);
+      } catch (e) {
+        if (mounted) {
+          await showDialog(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              title: const Text("สร้างรายการขายไม่สำเร็จ"),
+              content: Text(e.toString()),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text("ตกลง"),
+                ),
+              ],
+            ),
+          );
+        }
+        return; // Skip confirm
+      }
+
+      // 4. Confirm Status
+      await ref.read(preOrderServiceProvider).confirmPreOrder(preOrderId);
 
       // 5. Prepare data for Print (Complete Screen)
       final customerData = rawJson['customer'] ?? {};
