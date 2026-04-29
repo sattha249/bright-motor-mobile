@@ -291,6 +291,16 @@ class _PreOrderDetailDialogState extends ConsumerState<PreOrderDetailDialog> {
 
       final List<CartItem> cartItemsForPrint = (rawJson['items'] as List).map((item) {
         final productData = item['product'] ?? {};
+
+        // 1. ดึงส่วนลด และ ราคาสุทธิ จาก API
+        final discountFromApi = double.tryParse(item['discount']?.toString() ?? '0') ?? 0.0;
+        final soldPriceFromApi = double.tryParse(item['sold_price']?.toString() ?? '0') ?? 0.0;
+        
+        // 2. คำนวณราคาเต็มตั้งต้นคืนมา (ป้องกันบัคเซฟข้อมูลผิด)
+        final realBasePrice = soldPriceFromApi + discountFromApi;
+        final finalSellPrice = soldPriceFromApi > 0 
+            ? realBasePrice 
+            : (double.tryParse(item['price']?.toString() ?? '0') ?? 0.0);
         
         final product = Product(
           id: item['product_id'],
@@ -300,14 +310,14 @@ class _PreOrderDetailDialogState extends ConsumerState<PreOrderDetailDialog> {
           category: productData['category'] ?? '',
           unit: productData['unit'] ?? '',
           costPrice: (productData['cost_price'] ?? '0').toString(), 
-          sellPrice: (item['price'] ?? '0').toString(), 
+          sellPrice: finalSellPrice.toString(),
           quantity: 0
         );
 
         return CartItem(
           product: product,
           quantity: item['quantity'],
-          discountValue: double.tryParse(item['discount'].toString()) ?? 0.0,
+          discountValue: discountFromApi
         );
       }).toList();
 
