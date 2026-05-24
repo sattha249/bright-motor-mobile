@@ -335,7 +335,9 @@ class _PreOrderDetailDialogState extends ConsumerState<PreOrderDetailDialog> {
            customerAddress: custAddr,
           customerPhone: custPhone,
           salespersonName: saleName,
-          isCredit: isCreditBool
+          isCredit: isCreditBool,
+          billNo: rawJson['bill_no']?.toString(), 
+          isPreorder: true,
         );
       }
 

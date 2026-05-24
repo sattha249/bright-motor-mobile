@@ -50,6 +50,8 @@ class PrintService {
     String? customerPhone, 
     String? salespersonName,
     bool isCredit = false, // เปลี่ยนจาก paymentType เป็น isCredit
+    String? billNo,          
+    bool isPreorder = false, 
   }) async {
     try {
       // comment this for test ja
@@ -69,7 +71,9 @@ class PrintService {
           customerAddress: customerAddress,
           customerPhone: customerPhone,     
           salespersonName: salespersonName, 
-          isCredit: isCredit
+          isCredit: isCredit,
+          billNo: billNo,         
+          isPreorder: isPreorder, 
         );
       } else {
         await _printReceiptAsText(
@@ -79,7 +83,9 @@ class PrintService {
           customerAddress: customerAddress, 
           customerPhone: customerPhone,    
           salespersonName: salespersonName,
-          isCredit: isCredit
+          isCredit: isCredit,
+          billNo: billNo,         
+          isPreorder: isPreorder, 
         );
       }
 
@@ -100,6 +106,8 @@ class PrintService {
     String? customerPhone, 
     String? salespersonName,
     required bool isCredit,
+    String? billNo,
+    bool isPreorder = false,
   }) async {
       int codePage = await preferences.getPrinterCodePage();
       
@@ -114,6 +122,11 @@ class PrintService {
       await bluetooth.writeBytes(Tis620Helper.text("BRIGHT MOTOR", isBold: true, align: 1));
       await bluetooth.writeBytes(Tis620Helper.text("STORE", align: 1));
       await bluetooth.printNewLine();
+      if (billNo != null && billNo.isNotEmpty) {
+        await bluetooth.writeBytes(Tis620Helper.text("เลขที่บิล: $billNo"));
+      }
+      String orderTypeLabel = isPreorder ? "พรีออเดอร์" : "ขายหน้ารถ";
+      await bluetooth.writeBytes(Tis620Helper.text("ประเภทบิล: $orderTypeLabel"));
 
       await bluetooth.writeBytes(Tis620Helper.text("Date: $date $time"));
      if (customerName != null) {
@@ -192,6 +205,8 @@ class PrintService {
     String? customerPhone, 
     String? salespersonName, 
     required bool isCredit,
+    String? billNo,         
+    bool isPreorder = false, 
   }) async {
     final GlobalKey receiptKey = GlobalKey();
     double baseFontSize = await preferences.getPrinterFontSize();
@@ -245,6 +260,10 @@ class PrintService {
                     Divider(color: Colors.black, thickness: 1.5),
                     
                     Text("Date: $dateStr", style: TextStyle(fontSize: normalSize, color: Colors.black)),
+                    if (billNo != null && billNo.isNotEmpty)
+                      Text("เลขที่บิล: $billNo", style: TextStyle(fontSize: normalSize, color: Colors.black)),
+                    
+                    Text("ประเภทบิล: ${isPreorder ? 'พรีออเดอร์' : 'ขายหน้ารถ'}", style: TextStyle(fontSize: normalSize, color: Colors.black)),
                     if (customerName != null) 
                       Text("ลูกค้า: $customerName", style: TextStyle(fontSize: normalSize, fontWeight: FontWeight.bold, color: Colors.black)),
                     
