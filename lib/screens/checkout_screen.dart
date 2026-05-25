@@ -103,14 +103,28 @@ class CheckoutScreen extends ConsumerWidget {
 
               try {
                 // [แก้ไข] เรียก submit แบบใหม่ (ไม่ต้องส่ง isCredit หรือ items เองแล้ว)
-                await ref.read(cartProvider.notifier).submit(
+                final billNo = await ref.read(cartProvider.notifier).submit(
                   truckId: truck.truckId!,
                   customerId: customer.id,
                 );
-                
                 if (context.mounted) {
-                  // ส่ง cartItems ไปให้หน้า Complete (ก่อนจะถูก clear)
-                  await launchCheckoutCompleteScreen(context, cartItems, customer.name); 
+                  // [เพิ่ม] ดึงค่าเพื่อเช็คว่าเป็นบิลเครดิตหรือไม่
+                  final paymentTerm = ref.read(paymentTermProvider);
+                  final isCreditBool = paymentTerm != PaymentTerm.cash;
+
+                  // [แก้ไข] โยน billNo และ isPreorder ทะลุไปให้ PrintService
+                  await launchCheckoutCompleteScreen(
+                    context, 
+                    cartItems, 
+                    customer.name,
+                    // ถ้าใน model Customer มีฟิลด์ address/tel ให้ใส่ด้วยครับ 
+                    // เช่น customerAddress: customer.address, 
+                    isCredit: isCreditBool,
+                    
+                    billNo: billNo,         // ✅ ส่งเลขบิล
+                    isPreorder: false,      // ✅ ระบุชัดเจนว่า "ขายหน้ารถ"
+                  ); 
+                  
                   ref.read(cartProvider.notifier).clear(); // ล้างตะกร้าหลังจบ
                   Navigator.of(context).popUntil((route) => route.isFirst);
                 }

@@ -104,13 +104,14 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
     state = [];
   }
 
-  Future<void> submit({required int truckId, required int customerId}) async {
+  Future<String> submit({required int truckId, required int customerId}) async {
     final paymentTerm = ref.read(paymentTermProvider);
-    await sellService.submitOrder(
+    final billNo = await sellService.submitOrder(
       truckId: truckId,
       customerId: customerId,
       paymentTerm: paymentTerm,
       items: state,
     );
+    return billNo;
   }
 }

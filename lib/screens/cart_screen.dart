@@ -208,6 +208,10 @@ ElevatedButton(
                              );
                              return;
                           }
+                          final billNo = await notifier.submit(
+                            truckId: truck.truckId!, 
+                            customerId: customer.id
+                          );
 
                           // บันทึกการขาย
                           await notifier.submit(
@@ -228,6 +232,8 @@ ElevatedButton(
                               customerAddress: customer.address, // [ส่ง] ที่อยู่
                               customerPhone: customer.tel,     // [ส่ง] เบอร์โทร
                               salespersonName: salespersonName,  // [ส่ง] ชื่อคนขาย (จาก truck provider)
+                              billNo: billNo,         // 👈 ส่งเลขบิลเข้าไป
+                              isPreorder: false,      // 👈 ระบุชัดเจนว่า "ขายหน้ารถ"
                             );
                             
                             notifier.clear(); 

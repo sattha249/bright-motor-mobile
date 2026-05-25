@@ -12,7 +12,7 @@ final sellServiceProvider = Provider.autoDispose<SellService>((ref) {
 });
 
 abstract class SellService {
-  Future<void> submitOrder({
+  Future<String> submitOrder({
     required int truckId,
     required int customerId,
     required PaymentTerm paymentTerm,
@@ -28,7 +28,7 @@ class SellServiceImpl implements SellService {
   SellServiceImpl();
 
   @override
-  Future<void> submitOrder({
+  Future<String> submitOrder({
     required int truckId,
     required int customerId,
     required PaymentTerm paymentTerm,
@@ -90,6 +90,10 @@ class SellServiceImpl implements SellService {
     if (response.statusCode != 200 && response.statusCode != 201) {
       throw Exception('Failed to submit order: ${response.body}');
     }
+    final responseData = jsonDecode(response.body);
+    // ดักไว้ทั้ง 2 กรณี: API อาจจะส่ง json ตรงๆ หรือครอบมาใน key 'data'
+    final billNo = responseData['bill_no'] ?? responseData['data']?['bill_no'] ?? '';
+    return billNo.toString(); // ส่งเลขบิลกลับไป!
   }
 
   @override

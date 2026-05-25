@@ -125,8 +125,6 @@ class PrintService {
       if (billNo != null && billNo.isNotEmpty) {
         await bluetooth.writeBytes(Tis620Helper.text("เลขที่บิล: $billNo"));
       }
-      String orderTypeLabel = isPreorder ? "พรีออเดอร์" : "ขายหน้ารถ";
-      await bluetooth.writeBytes(Tis620Helper.text("ประเภทบิล: $orderTypeLabel"));
 
       await bluetooth.writeBytes(Tis620Helper.text("Date: $date $time"));
      if (customerName != null) {
@@ -140,6 +138,8 @@ class PrintService {
         await bluetooth.writeBytes(Tis620Helper.text("โทร: $customerPhone"));
       }
 
+      String orderTypeLabel = isPreorder ? "พรีออเดอร์" : "ขายหน้ารถ";
+      await bluetooth.writeBytes(Tis620Helper.text("ประเภทบิล: $orderTypeLabel"));
       // [เพิ่ม] ประเภทการชำระ
       String paymentLabel = isCredit ? "เครดิต" : "เงินสด";
       await bluetooth.writeBytes(Tis620Helper.text("การชำระเงิน: $paymentLabel"));
@@ -226,7 +226,7 @@ class PrintService {
     } catch (e) {
       print("Error loading QR for image mode: $e");
     }
-
+    
     double totalAmount = 0.0;
     for (var item in cartItems) {
       totalAmount += item.totalSoldPrice;
@@ -263,7 +263,6 @@ class PrintService {
                     if (billNo != null && billNo.isNotEmpty)
                       Text("เลขที่บิล: $billNo", style: TextStyle(fontSize: normalSize, color: Colors.black)),
                     
-                    Text("ประเภทบิล: ${isPreorder ? 'พรีออเดอร์' : 'ขายหน้ารถ'}", style: TextStyle(fontSize: normalSize, color: Colors.black)),
                     if (customerName != null) 
                       Text("ลูกค้า: $customerName", style: TextStyle(fontSize: normalSize, fontWeight: FontWeight.bold, color: Colors.black)),
                     
@@ -272,6 +271,7 @@ class PrintService {
                     if (customerPhone != null && customerPhone.isNotEmpty)
                       Text("โทร: $customerPhone", style: TextStyle(fontSize: smallSize, color: Colors.black)),
                     
+                    Text("ประเภทบิล: ${isPreorder ? 'พรีออเดอร์' : 'ขายหน้ารถ'}", style: TextStyle(fontSize: normalSize, color: Colors.black)),
                     // [เพิ่ม] แสดงประเภทการชำระเงิน
                     Text("การชำระเงิน: $paymentLabel", style: TextStyle(fontSize: normalSize, color: Colors.black)),
                     if (salespersonName != null)
