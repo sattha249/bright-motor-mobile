@@ -97,10 +97,10 @@ class _PreOrderDetailDialogState extends ConsumerState<PreOrderDetailDialog> {
                             if (order.items.isEmpty)
                               const Text("- ไม่พบรายการสินค้า -", style: TextStyle(color: Colors.grey)),
                             
-                            ...order.items.map((item) => Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 6), // เพิ่มช่องว่างระหว่างบรรทัดนิดนึง
+                           ...order.items.map((item) => Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 6),
                               child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start, // ให้อักษรเริ่มชิดบนเสมอ
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   // 1. ชื่อสินค้า และ ราคาต่อหน่วย
                                   Expanded(
@@ -108,14 +108,14 @@ class _PreOrderDetailDialogState extends ConsumerState<PreOrderDetailDialog> {
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          _safeGetProductName(item), 
+                                          item.productName, // ✅ เรียกจาก Model ได้เลย
                                           maxLines: 2, 
                                           overflow: TextOverflow.ellipsis
                                         ),
                                         const SizedBox(height: 2),
-                                        // ตัวหนังสือเล็กๆ แสดงราคาต่อหน่วย
+                                        // ราคาต่อหน่วย
                                         Text(
-                                          "ราคา/หน่วย: ฿${_safeGetUnitPrice(item)}",
+                                          "ราคา/หน่วย: ฿${_getUnitPrice(item)}",
                                           style: const TextStyle(fontSize: 12, color: Colors.grey),
                                         ),
                                       ],
@@ -124,13 +124,13 @@ class _PreOrderDetailDialogState extends ConsumerState<PreOrderDetailDialog> {
                                   // 2. จำนวน
                                   SizedBox(
                                     width: 40,
-                                    child: Text("x${item.quantity}", textAlign: TextAlign.right)
+                                    child: Text("x${item.quantity}", textAlign: TextAlign.right) // ✅ เรียกจาก Model
                                   ),
-                                  // 3. ราคารวมทุกชิ้นของแถวนี้
+                                  // 3. ราคารวม (ราคาต่อหน่วย x จำนวน)
                                   SizedBox(
-                                    width: 85, // เผื่อที่ให้ราคารวมเยอะขึ้นหน่อย
+                                    width: 85,
                                     child: Text(
-                                      "฿${_safeGetTotalPrice(item)}", 
+                                      "฿${_getTotalPrice(item)}", 
                                       textAlign: TextAlign.right,
                                       style: const TextStyle(fontWeight: FontWeight.w500, color: Colors.blue)
                                     )
@@ -425,66 +425,19 @@ class _PreOrderDetailDialogState extends ConsumerState<PreOrderDetailDialog> {
       try { return item.product.description; } catch (__) { return "-"; }
     }
   }
- // --- ฟังก์ชันดึงราคาต่อหน่วย ---
-  // --- ฟังก์ชันดึงราคาต่อหน่วย (เวอร์ชันกันพลาด 100%) ---
-  String _safeGetUnitPrice(dynamic item) {
-    // ลิสต์ของตัวแปรที่ "น่าจะเป็นราคา" ทั้งหมดใน Model และ JSON
-    final possibleValues = [
-      () => item.soldPrice,
-      () => item.price,
-      () => item.sellPrice,
-      () => item.product.sellPrice, // เผื่อราคาซ่อนอยู่ในก้อน product
-      () => item.product.price,
-      () => item['sold_price'],     // เผื่อข้อมูลมาเป็น Map JSON ดิบๆ
-      () => item['price'],
-    ];
-
-    for (var getVal in possibleValues) {
-      try {
-        final val = getVal();
-        if (val != null) {
-          final parsed = double.tryParse(val.toString());
-          if (parsed != null && parsed > 0) return parsed.toStringAsFixed(2);
-        }
-      } catch (_) {} // ถ้า Error (ไม่มีตัวแปรชื่อนี้) ให้ข้ามไปลองชื่อถัดไปเงียบๆ
-    }
-    return "0.00";
+// --- ฟังก์ชันดึงราคาต่อหน่วย ---
+  String _getUnitPrice(PreOrderItem item) {
+    // ใน Model ตัวแปร price ดึงค่า sold_price มาให้แล้ว นำมาแปลงเป็นตัวเลขได้เลย
+    final unitPrice = double.tryParse(item.price) ?? 0.0;
+    return unitPrice.toStringAsFixed(2);
   }
 
-  // --- ฟังก์ชันคำนวณราคารวมของแถวนั้น (เวอร์ชันกันพลาด 100%) ---
-  String _safeGetTotalPrice(dynamic item) {
-    // ลองหาฟิลด์ราคารวมสำเร็จรูปก่อน
-    final possibleValues = [
-      () => item.totalSoldPrice,
-      () => item.totalPrice,
-      () => item['total_sold_price'],
-      () => item['total_price'],
-    ];
-
-    for (var getVal in possibleValues) {
-      try {
-        final val = getVal();
-        if (val != null) {
-          final parsed = double.tryParse(val.toString());
-          if (parsed != null && parsed > 0) return parsed.toStringAsFixed(2);
-        }
-      } catch (_) {}
-    }
-
-    // ไม้ตายสุดท้าย: ถ้าระบบไม่ได้คำนวณราคารวมมาให้ เราจับ (ราคา x จำนวน) เองเลย!
-    try {
-      final unitPrice = double.tryParse(_safeGetUnitPrice(item)) ?? 0;
-      double qty = 0;
-      try { qty = double.parse(item.quantity.toString()); } catch (_) {
-        try { qty = double.parse(item['quantity'].toString()); } catch (_) {}
-      }
-      
-      if (unitPrice > 0 && qty > 0) {
-        return (unitPrice * qty).toStringAsFixed(2);
-      }
-    } catch (_) {}
-
-    return "0.00";
+  // --- ฟังก์ชันคำนวณราคารวม (ต่อแถว) ---
+  String _getTotalPrice(PreOrderItem item) {
+    final unitPrice = double.tryParse(item.price) ?? 0.0;
+    final qty = item.quantity;
+    
+    return (unitPrice * qty).toStringAsFixed(2);
   }
 
   Widget _buildInfoRow(String label, String value) {
