@@ -25,145 +25,175 @@ class _PreOrderDetailDialogState extends ConsumerState<PreOrderDetailDialog> {
   Widget build(BuildContext context) {
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Container(
-        constraints: const BoxConstraints(maxHeight: 600),
-        child: FutureBuilder<PreOrder>(
-          future: ref.read(preOrderServiceProvider).getPreOrderDetail(widget.preOrderId),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const SizedBox(
-                height: 200,
-                child: Center(child: CircularProgressIndicator()),
-              );
-            }
+      // ✅ 1. ห่อหน้าต่างเดิมด้วย Stack เพื่อทำเลเยอร์ซ้อนทับ
+      child: Stack(
+        children: [
+          // --- เลเยอร์ที่ 1: เนื้อหาหน้าต่างเดิม ---
+          IgnorePointer(
+            ignoring: isProcessing, // ✅ 2. ตัดการรับสัมผัสทั้งหมด หากกำลังโหลด (ป้องกันกดเบิ้ล 100%)
+            child: Container(
+              constraints: const BoxConstraints(maxHeight: 600),
+              child: FutureBuilder<PreOrder>(
+                future: ref.read(preOrderServiceProvider).getPreOrderDetail(widget.preOrderId),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const SizedBox(
+                      height: 200,
+                      child: Center(child: CircularProgressIndicator()),
+                    );
+                  }
 
-            if (snapshot.hasError) {
-              return Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.error_outline, color: Colors.red, size: 48),
-                    const SizedBox(height: 16),
-                    Text("Error: ${snapshot.error}"),
-                    const SizedBox(height: 16),
-                    TextButton(onPressed: () => Navigator.pop(context), child: const Text("ปิด"))
-                  ],
-                ),
-              );
-            }
+                  if (snapshot.hasError) {
+                    return Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.error_outline, color: Colors.red, size: 48),
+                          const SizedBox(height: 16),
+                          Text("Error: ${snapshot.error}"),
+                          const SizedBox(height: 16),
+                          TextButton(onPressed: () => Navigator.pop(context), child: const Text("ปิด"))
+                        ],
+                      ),
+                    );
+                  }
 
-            final order = snapshot.data!;
-            final canConfirm = order.status == 'Pending';
+                  final order = snapshot.data!;
+                  final canConfirm = order.status == 'Pending';
 
-            return Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Header
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text("รายละเอียดคำสั่งซื้อ", style: Theme.of(context).textTheme.titleLarge),
-                      IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
-                    ],
-                  ),
-                ),
-                const Divider(height: 1),
-
-                // Content
-                Flexible(
-                  child: ListView(
-                    padding: const EdgeInsets.all(16),
-                    shrinkWrap: true,
-                    children: [
-                      _buildInfoRow("เลขที่บิล", order.billNo),
-                      _buildInfoRow("ลูกค้า", _safeGetCustomerName(order)),
-                      _buildInfoRow("สถานะ", order.status),
-                      _buildInfoRow("ยอดรวม", "฿${order.totalSoldPrice}"),
-                      
-                      const SizedBox(height: 16),
-                      const Text("รายการสินค้า:", style: TextStyle(fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 8),
-                      
-                      if (order.items.isEmpty)
-                        const Text("- ไม่พบรายการสินค้า -", style: TextStyle(color: Colors.grey)),
-                      
-                      ...order.items.map((item) => Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
+                      // Header
+                      Padding(
+                        padding: const EdgeInsets.all(16.0),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Expanded(child: Text(_safeGetProductName(item), maxLines: 1, overflow: TextOverflow.ellipsis)),
-                            Text("x${item.quantity}"),
+                            Text("รายละเอียดคำสั่งซื้อ", style: Theme.of(context).textTheme.titleLarge),
+                            IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
                           ],
                         ),
-                      )),
-                    ],
-                  ),
-                ),
+                      ),
+                      const Divider(height: 1),
 
-                // Actions
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    children: [
-                      // ปุ่มหลัก (ยืนยัน)
-                      if (canConfirm) ...[
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.green,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                            ),
-                            onPressed: isProcessing ? null : () => _handleConfirm(context, order.id, ref),
-                            child: isProcessing 
-                              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                              : const Text("ยืนยันรายการ (ส่งของ)"),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                      ],
-
-                      // ปุ่มรอง (ยกเลิก & ปิด)
-                      Row(
-                        children: [
-                          if (canConfirm) ...[
-                            // [เพิ่ม] ปุ่มยกเลิกใบงาน (สีแดง)
-                            Expanded(
-                              child: OutlinedButton.icon(
-                                icon: const Icon(Icons.delete_forever, size: 18),
-                                label: const Text("ยกเลิก"),
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: Colors.red,
-                                  side: const BorderSide(color: Colors.red),
-                                ),
-                                onPressed: isProcessing ? null : () => _showCancelConfirmation(context, order.id, ref),
+                      // Content
+                      Flexible(
+                        child: ListView(
+                          padding: const EdgeInsets.all(16),
+                          shrinkWrap: true,
+                          children: [
+                            _buildInfoRow("เลขที่บิล", order.billNo),
+                            _buildInfoRow("ลูกค้า", _safeGetCustomerName(order)),
+                            _buildInfoRow("สถานะ", order.status),
+                            _buildInfoRow("ยอดรวม", "฿${order.totalSoldPrice}"),
+                            
+                            const SizedBox(height: 16),
+                            const Text("รายการสินค้า:", style: TextStyle(fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 8),
+                            
+                            if (order.items.isEmpty)
+                              const Text("- ไม่พบรายการสินค้า -", style: TextStyle(color: Colors.grey)),
+                            
+                            ...order.items.map((item) => Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 4),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Expanded(child: Text(_safeGetProductName(item), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                                  Text("x${item.quantity}"),
+                                ],
                               ),
-                            ),
-                            const SizedBox(width: 12),
+                            )),
                           ],
-                          
-                          // ปุ่มปิด
-                          Expanded(
-                            child: OutlinedButton(
-                              onPressed: isProcessing ? null : () => Navigator.pop(context),
-                              child: const Text("ปิดหน้าต่าง"),
+                        ),
+                      ),
+
+                      // Actions
+                      Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          children: [
+                            // ปุ่มหลัก (ยืนยัน)
+                            if (canConfirm) ...[
+                              SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.green,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                  ),
+                                  onPressed: isProcessing ? null : () => _handleConfirm(context, order.id, ref),
+                                  // ✅ เอา Spinner จิ๋วในปุ่มออก เพราะมีอันใหญ่บังจอแล้ว 
+                                  child: const Text("ยืนยันรายการ (ส่งของ)"),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                            ],
+
+                            // ปุ่มรอง (ยกเลิก & ปิด)
+                            Row(
+                              children: [
+                                if (canConfirm) ...[
+                                  Expanded(
+                                    child: OutlinedButton.icon(
+                                      icon: const Icon(Icons.delete_forever, size: 18),
+                                      label: const Text("ยกเลิก"),
+                                      style: OutlinedButton.styleFrom(
+                                        foregroundColor: Colors.red,
+                                        side: const BorderSide(color: Colors.red),
+                                      ),
+                                      onPressed: isProcessing ? null : () => _showCancelConfirmation(context, order.id, ref),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                ],
+                                
+                                Expanded(
+                                  child: OutlinedButton(
+                                    onPressed: isProcessing ? null : () => Navigator.pop(context),
+                                    child: const Text("ปิดหน้าต่าง"),
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
+                      )
+                    ],
+                  );
+                },
+              ),
+            ),
+          ),
+
+          // --- เลเยอร์ที่ 2: ม่านบังหน้าจอตอนกำลังโหลด ---
+          if (isProcessing)
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.75), // ทำพื้นหลังให้เป็นสีขาวจางๆ
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: const Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CircularProgressIndicator(),
+                      SizedBox(height: 16),
+                      Text(
+                        "กำลังบันทึกข้อมูล...",
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blue),
                       ),
                     ],
                   ),
-                )
-              ],
-            );
-          },
-        ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

@@ -200,47 +200,62 @@ ElevatedButton(
                       backgroundColor: Colors.blue,
                     ),
                     onPressed: cartItems.isEmpty ? null : () async {
+                      // ✅ 1. เด้งหน้าต่าง Loading บังหน้าจอไว้ทันทีที่กดปุ่ม
+                      showDialog(
+                        context: context,
+                        barrierDismissible: false, // บังคับไม่ให้กดพื้นที่ว่างเพื่อปิด
+                        builder: (ctx) => const AlertDialog(
+                          content: Row(
+                            children: [
+                              CircularProgressIndicator(),
+                              SizedBox(width: 20),
+                              Text("กำลังบันทึกข้อมูล..."),
+                            ],
+                          ),
+                        ),
+                      );
+
                       try {
                           final truck = ref.read(currentTruckProvider);
                           if (truck == null || truck.truckId == null) {
+                             Navigator.pop(context); // ปิด Loading ก่อนแจ้งเตือน
                              ScaffoldMessenger.of(context).showSnackBar(
                                const SnackBar(content: Text("ไม่พบข้อมูลรถ (Truck ID Missing)"), backgroundColor: Colors.red)
                              );
                              return;
                           }
-                          final billNo = await notifier.submit(
-                            truckId: truck.truckId!, 
-                            customerId: customer.id
-                          );
 
-                          // บันทึกการขาย
-                          await notifier.submit(
+                          // ✅ 2. ยิง API
+                          final billNo = await notifier.submit(
                             truckId: truck.truckId!, 
                             customerId: customer.id
                           );
                           
                           if (context.mounted) {
-                            final soldItems = List<CartItem>.from(cartItems); // Clone ไว้ก่อน clear
+                            Navigator.pop(context); // ✅ 3. ปิด Loading เมื่อทำงานสำเร็จ!
+
+                            final soldItems = List<CartItem>.from(cartItems);
                             
-                            // [แก้ไข] ส่ง isCredit ไปให้หน้า CompleteScreen
-                            // (สมมติว่า launchCheckoutCompleteScreen รับ named parameter isCredit)
                             await launchCheckoutCompleteScreen(
                               context, 
                               soldItems, 
                               customer.name,
-                              isCredit: isCreditMode, // ส่งค่านี้ไป
-                              customerAddress: customer.address, // [ส่ง] ที่อยู่
-                              customerPhone: customer.tel,     // [ส่ง] เบอร์โทร
-                              salespersonName: salespersonName,  // [ส่ง] ชื่อคนขาย (จาก truck provider)
-                              billNo: billNo,         // 👈 ส่งเลขบิลเข้าไป
-                              isPreorder: false,      // 👈 ระบุชัดเจนว่า "ขายหน้ารถ"
+                              isCredit: isCreditMode, 
+                              customerAddress: customer.address, 
+                              customerPhone: customer.tel,     
+                              salespersonName: salespersonName,
+                              billNo: billNo,         
+                              isPreorder: false,      
                             );
                             
                             notifier.clear(); 
                           }
                       } catch (e) {
                           if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red));
+                            Navigator.pop(context); // ✅ 4. ปิด Loading ถ้าเกิด Error เพื่อให้กดลองใหม่ได้
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red)
+                            );
                           }
                       }
                     },
