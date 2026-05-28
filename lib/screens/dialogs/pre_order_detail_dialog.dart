@@ -353,15 +353,26 @@ class _PreOrderDetailDialogState extends ConsumerState<PreOrderDetailDialog> {
       final List<CartItem> cartItemsForPrint = (rawJson['items'] as List).map((item) {
         final productData = item['product'] ?? {};
 
-        // 1. ดึงส่วนลด และ ราคาสุทธิ จาก API
-        final discountFromApi = double.tryParse(item['discount']?.toString() ?? '0') ?? 0.0;
-        final soldPriceFromApi = double.tryParse(item['sold_price']?.toString() ?? '0') ?? 0.0;
+        // 1. ดึงส่วนลด และ ราคาสุทธิ จาก API (รองรับทั้ง snake_case และ camelCase)
+        final discountFromApi = double.tryParse(item['discount']?.toString() ?? '') ?? 
+                               double.tryParse(item['discountValue']?.toString() ?? '') ?? 0.0;
+        final soldPriceFromApi = double.tryParse(item['sold_price']?.toString() ?? '') ?? 
+                                double.tryParse(item['soldPrice']?.toString() ?? '') ?? 0.0;
+        final priceFromApi = double.tryParse(item['price']?.toString() ?? '') ?? 0.0;
         
-        // 2. คำนวณราคาเต็มตั้งต้นคืนมา (ป้องกันบัคเซฟข้อมูลผิด)
-        final realBasePrice = soldPriceFromApi + discountFromApi;
-        final finalSellPrice = soldPriceFromApi > 0 
-            ? realBasePrice 
-            : (double.tryParse(item['price']?.toString() ?? '0') ?? 0.0);
+        // 2. ป้องกัน Bug การลดราคาสองเด้ง (Double Discount)
+        // โดยปกติ 'price' คือราคาเต็ม และ 'sold_price' คือราคาหลังลด
+        // แต่กรณีที่ 'price' ถูกบันทึกเป็นราคาที่ลดแล้ว (price == sold_price) เราจะกู้ราคาเต็มกลับมา
+        double finalSellPrice = priceFromApi;
+        if (soldPriceFromApi > 0 && discountFromApi > 0) {
+          if (priceFromApi <= 0 || (priceFromApi - soldPriceFromApi).abs() < 0.01) {
+            finalSellPrice = soldPriceFromApi + discountFromApi;
+          } else {
+            finalSellPrice = priceFromApi;
+          }
+        } else if (soldPriceFromApi > 0) {
+          finalSellPrice = priceFromApi > 0 ? priceFromApi : soldPriceFromApi;
+        }
         
         final product = Product(
           id: item['product_id'],

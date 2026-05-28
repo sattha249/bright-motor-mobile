@@ -40,7 +40,9 @@ class CheckoutScreen extends ConsumerWidget {
                         children: [
                           ...cartItems.map((item) => ListTile(
                             title: Text("${item.product.description} x${item.quantity}"),
-                            subtitle: item.useDiscount ? const Text("ส่วนลด 10%", style: TextStyle(color: Colors.green, fontSize: 12)) : null,
+                            subtitle: item.discountValue > 0 
+                                ? Text("ส่วนลด ฿${item.discountValue.toStringAsFixed(2)}", style: const TextStyle(color: Colors.green, fontSize: 12)) 
+                                : null,
                             trailing: Text("฿${item.totalSoldPrice.toStringAsFixed(2)}"),
                           )),
                           const Divider(),

@@ -76,19 +76,39 @@ class SellHistoryServiceImpl implements SellHistoryService {
   List<CartItem> convertLogToCartItems(List<dynamic> itemsData) {
     print(itemsData);
     return itemsData.map((item) {
+      // 1. ดึงส่วนลด และ ราคาสุทธิ จาก API (รองรับทั้ง snake_case และ camelCase)
+      final discountFromApi = double.tryParse(item['discount']?.toString() ?? '') ?? 
+                             double.tryParse(item['discountValue']?.toString() ?? '') ?? 0.0;
+      final soldPriceFromApi = double.tryParse(item['sold_price']?.toString() ?? '') ?? 
+                              double.tryParse(item['soldPrice']?.toString() ?? '') ?? 0.0;
+      final priceFromApi = double.tryParse(item['price']?.toString() ?? '') ?? 0.0;
+
+      // 2. ป้องกัน Bug การลดราคาสองเด้ง (Double Discount)
+      // โดยปกติ 'price' คือราคาเต็ม และ 'sold_price' คือราคาหลังลด
+      // แต่กรณีที่ 'price' ถูกบันทึกเป็นราคาที่ลดแล้ว (price == sold_price) เราจะกู้ราคาเต็มกลับมา
+      double finalSellPrice = priceFromApi;
+      if (soldPriceFromApi > 0 && discountFromApi > 0) {
+        if (priceFromApi <= 0 || (priceFromApi - soldPriceFromApi).abs() < 0.01) {
+          finalSellPrice = soldPriceFromApi + discountFromApi;
+        } else {
+          finalSellPrice = priceFromApi;
+        }
+      } else if (soldPriceFromApi > 0) {
+        finalSellPrice = priceFromApi > 0 ? priceFromApi : soldPriceFromApi;
+      }
+
       final product = Product(
         id: item['product_id'] ?? 0,
-        description: item['product']['description'] ?? 'สินค้า',
-        category: item['product']['category'] ?? '',
+        description: item['product']?['description'] ?? 'สินค้า',
+        category: item['product']?['category'] ?? '',
         brand: item['brand'] ?? '',
         model: item['model'] ?? '',
         unit: item['unit'] ?? '',
         costPrice: (item['cost_price'] ?? '0').toString(),
-        sellPrice: (item['price'] ?? '0').toString(),
-        
+        sellPrice: finalSellPrice.toString(),
         quantity: 0,
       );
-      final discountFromApi = double.tryParse(item['discount']?.toString() ?? '0') ?? 0.0;
+
       return CartItem(
         product: product,
         quantity: int.tryParse(item['quantity'].toString()) ?? 1,
