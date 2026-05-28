@@ -410,6 +410,8 @@ class _PreOrderDetailDialogState extends ConsumerState<PreOrderDetailDialog> {
           isCredit: isCreditBool,
           billNo: rawJson['bill_no']?.toString(), 
           isPreorder: true,
+          totalSoldPrice: double.tryParse(rawJson['total_sold_price']?.toString() ?? ''),
+          totalDiscount: double.tryParse(rawJson['total_discount']?.toString() ?? ''),
         );
       }
 

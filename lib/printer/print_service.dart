@@ -51,7 +51,9 @@ class PrintService {
     String? salespersonName,
     bool isCredit = false, // เปลี่ยนจาก paymentType เป็น isCredit
     String? billNo,          
-    bool isPreorder = false, 
+    bool isPreorder = false,
+    double? totalSoldPrice,
+    double? totalDiscount,
   }) async {
     try {
       // comment this for test ja
@@ -73,7 +75,9 @@ class PrintService {
           salespersonName: salespersonName, 
           isCredit: isCredit,
           billNo: billNo,         
-          isPreorder: isPreorder, 
+          isPreorder: isPreorder,
+          totalSoldPrice: totalSoldPrice,
+          totalDiscount: totalDiscount,
         );
       } else {
         await _printReceiptAsText(
@@ -85,7 +89,9 @@ class PrintService {
           salespersonName: salespersonName,
           isCredit: isCredit,
           billNo: billNo,         
-          isPreorder: isPreorder, 
+          isPreorder: isPreorder,
+          totalSoldPrice: totalSoldPrice,
+          totalDiscount: totalDiscount,
         );
       }
 
@@ -108,6 +114,8 @@ class PrintService {
     required bool isCredit,
     String? billNo,
     bool isPreorder = false,
+    double? totalSoldPrice,
+    double? totalDiscount,
   }) async {
       int codePage = await preferences.getPrinterCodePage();
       
@@ -164,6 +172,10 @@ class PrintService {
         await bluetooth.writeBytes(Tis620Helper.text(detailText, align: 0));
       }
 
+      if (totalSoldPrice != null) {
+        totalAmount = totalSoldPrice;
+      }
+
       await bluetooth.writeBytes(Tis620Helper.text("--------------------------------"));
       await bluetooth.writeBytes(Tis620Helper.text("ยอดรวม: ${_formatCurrency(totalAmount)}", isBold: true, align: 2));
       
@@ -206,7 +218,9 @@ class PrintService {
     String? salespersonName, 
     required bool isCredit,
     String? billNo,         
-    bool isPreorder = false, 
+    bool isPreorder = false,
+    double? totalSoldPrice,
+    double? totalDiscount,
   }) async {
     final GlobalKey receiptKey = GlobalKey();
     double baseFontSize = await preferences.getPrinterFontSize();
@@ -230,6 +244,9 @@ class PrintService {
     double totalAmount = 0.0;
     for (var item in cartItems) {
       totalAmount += item.totalSoldPrice;
+    }
+    if (totalSoldPrice != null) {
+      totalAmount = totalSoldPrice;
     }
     final now = DateTime.now();
     final dateStr = "${now.day}/${now.month}/${now.year} ${now.hour}:${now.minute}";

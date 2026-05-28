@@ -14,6 +14,8 @@ Future<dynamic> launchCheckoutCompleteScreen(
   String? salespersonName,
   String? billNo, // [เพิ่ม]
   bool isPreorder = false, // [เพิ่ม]
+  double? totalSoldPrice,
+  double? totalDiscount,
 }) {
   return Navigator.of(context).push(MaterialPageRoute(
       builder: (context) => CompleteScreen(
@@ -25,6 +27,8 @@ Future<dynamic> launchCheckoutCompleteScreen(
             salespersonName: salespersonName,
             billNo: billNo, // [เพิ่ม] ส่งต่อให้ Widget
             isPreorder: isPreorder, // [เพิ่ม] ส่งต่อให้ Widget
+            totalSoldPrice: totalSoldPrice,
+            totalDiscount: totalDiscount,
           ),
       fullscreenDialog: true));
 }
@@ -38,6 +42,8 @@ class CompleteScreen extends ConsumerWidget {
   final String? salespersonName;
   final String? billNo; // [เพิ่ม]
   final bool isPreorder; // [เพิ่ม]
+  final double? totalSoldPrice;
+  final double? totalDiscount;
 
   const CompleteScreen({
     super.key,
@@ -49,6 +55,8 @@ class CompleteScreen extends ConsumerWidget {
     this.salespersonName,
     this.billNo, // [เพิ่ม]
     this.isPreorder = false, // [เพิ่ม]
+    this.totalSoldPrice,
+    this.totalDiscount,
   });
 
   @override
@@ -97,6 +105,8 @@ class CompleteScreen extends ConsumerWidget {
                       isCredit: isCredit,
                       billNo: billNo, // [เพิ่ม]
                       isPreorder: isPreorder, // [เพิ่ม]
+                      totalSoldPrice: totalSoldPrice,
+                      totalDiscount: totalDiscount,
                     );
 
                     ScaffoldMessenger.of(context).showSnackBar(

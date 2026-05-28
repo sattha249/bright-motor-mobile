@@ -191,6 +191,10 @@ Future<void> _rePrint(BuildContext context, WidgetRef ref, dynamic logData) asyn
          isCreditBool = true;
       }
       
+      // [เพิ่ม] ดึงค่ายอดเงินรวมและส่วนลดรวมเพื่อป้องกันบัคปัดเศษทศนิยม
+      final double? totalSoldPriceVal = double.tryParse(logData['total_sold_price']?.toString() ?? '');
+      final double? totalDiscountVal = double.tryParse(logData['total_discount']?.toString() ?? '');
+
       await PrintService().printReceipt(
         context,
         itemsToPrint,
@@ -199,6 +203,8 @@ Future<void> _rePrint(BuildContext context, WidgetRef ref, dynamic logData) asyn
         customerPhone: custPhone,
         salespersonName: saleName,
         isCredit: isCreditBool, // [แก้ไข] ส่งค่า isCredit ไปด้วย
+        totalSoldPrice: totalSoldPriceVal,
+        totalDiscount: totalDiscountVal,
       );
 
     } catch (e) {
