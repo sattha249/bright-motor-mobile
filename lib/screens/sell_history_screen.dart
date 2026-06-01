@@ -190,6 +190,14 @@ Future<void> _rePrint(BuildContext context, WidgetRef ref, dynamic logData) asyn
       if (isCreditVal != null && isCreditVal != false && isCreditVal != "cash") {
          isCreditBool = true;
       }
+
+      // [เพิ่ม] ดึงค่า is_preorder จาก Log มาเช็ค (ตรงตาม API)
+      final isPreorderVal = logData['is_preorder'];
+      bool isPreorderBool = false;
+
+      if (isPreorderVal == true || isPreorderVal == 1 || isPreorderVal.toString() == '1' || isPreorderVal.toString().toLowerCase() == 'true') {
+         isPreorderBool = true;
+      }
       
       // [เพิ่ม] ดึงค่ายอดเงินรวมและส่วนลดรวมเพื่อป้องกันบัคปัดเศษทศนิยม
       final double? totalSoldPriceVal = double.tryParse(logData['total_sold_price']?.toString() ?? '');
@@ -203,6 +211,7 @@ Future<void> _rePrint(BuildContext context, WidgetRef ref, dynamic logData) asyn
         customerPhone: custPhone,
         salespersonName: saleName,
         isCredit: isCreditBool, // [แก้ไข] ส่งค่า isCredit ไปด้วย
+        isPreorder: isPreorderBool, // [เพิ่ม] ส่งค่า isPreorder ไปด้วย
         totalSoldPrice: totalSoldPriceVal,
         totalDiscount: totalDiscountVal,
       );
