@@ -1,7 +1,10 @@
 #!/bin/bash
 
-echo "🚀 กำลังเริ่มต้นการอัปโหลด APK..."
+# สั่ง flutter build apk --debug ก่อน 
+echo "Building apk --debug..."
+flutter build apk --debug
 
+echo "🚀 กำลังเริ่มต้นการอัปโหลด APK..."
 # เช็คก่อนว่ามีไฟล์ APK ที่เพิ่ง Build เสร็จอยู่จริงไหม
 if [ -f "build/app/outputs/flutter-apk/app-debug.apk" ]; then
     
