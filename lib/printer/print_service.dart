@@ -309,7 +309,7 @@ class PrintService {
                             ],
                           ),
                           if (item.discountValue > 0) 
-                            Text("  (ส่วนลด ${item.discountValue})", style: TextStyle(fontSize: smallSize, fontStyle: FontStyle.italic, color: Colors.black)),
+                            Text("  (ส่วนลด ${item.discountValue.toStringAsFixed(2)})", style: TextStyle(fontSize: smallSize, fontStyle: FontStyle.italic, color: Colors.black)),
                         ],
                       ),
                     )),
