@@ -212,6 +212,7 @@ Future<void> _rePrint(BuildContext context, WidgetRef ref, dynamic logData) asyn
         salespersonName: saleName,
         isCredit: isCreditBool, // [แก้ไข] ส่งค่า isCredit ไปด้วย
         isPreorder: isPreorderBool, // [เพิ่ม] ส่งค่า isPreorder ไปด้วย
+        billNo: logData['bill_no']?.toString(), // [เพิ่ม] ส่งค่า billNo ไปด้วย
         totalSoldPrice: totalSoldPriceVal,
         totalDiscount: totalDiscountVal,
       );
