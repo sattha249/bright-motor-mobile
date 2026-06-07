@@ -4,6 +4,7 @@ import 'package:brightmotor_store/providers/cart_provider.dart';
 import 'package:brightmotor_store/providers/truck_provider.dart';
 import 'package:brightmotor_store/screens/complete_screen.dart'; // import หน้า Complete
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 class CartScreen extends ConsumerWidget {
@@ -68,78 +69,11 @@ class CartScreen extends ConsumerWidget {
               separatorBuilder: (_, __) => const Divider(),
               itemBuilder: (context, index) {
                 final item = cartItems[index];
-                
-                return Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Column(
-                      children: [
-                        ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          title: Text(item.product.description),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text("${item.quantity} x ${item.product.sellPrice} = ฿${(item.quantity * item.price).toStringAsFixed(2)}"),
-                              if (item.discountValue > 0)
-                                Text(
-                                  "ส่วนลด: -฿${item.totalDiscount.toStringAsFixed(2)}",
-                                  style: const TextStyle(color: Colors.red, fontSize: 12),
-                                ),
-                            ],
-                          ),
-                          trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          // แสดงราคาสุทธิ
-                          Text(
-                            "฿${item.totalSoldPrice.toStringAsFixed(2)}",
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.blue),
-                          ),
-                          
-                          const SizedBox(width: 4), // เว้นระยะนิดนึง
-
-                          // [แก้ไข] เปลี่ยนจาก IconButton เป็น InkWell เพื่อรองรับ LongPress
-                          Material(
-                            color: Colors.transparent,
-                            child: InkWell(
-                              borderRadius: BorderRadius.circular(20), // ให้ Effect เป็นวงกลม
-                              onTap: () {
-                                // กด 1 ครั้ง: ลดจำนวน 1 ชิ้น
-                                // (ต้องมีฟังก์ชัน decreaseItem ใน Notifier)
-                                notifier.decreaseItem(item.product);
-                              },
-                              onLongPress: () {
-                                // กดค้าง: แสดง Dialog ยืนยันลบทั้งหมด
-                                _showDeleteConfirmDialog(context, notifier, item);
-                              },
-                              child: const Padding(
-                                padding: EdgeInsets.all(8.0),
-                                child: Icon(Icons.delete, color: Colors.red),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                        ),
-                        
-                        // Checkbox (เฉพาะเครดิต)
-                        if (isCreditMode)
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              const Text("จ่ายแล้ว"),
-                              Checkbox(
-                                value: item.isPaid,
-                                onChanged: (val) {
-                                  notifier.togglePaid(index, val ?? false);
-                                },
-                              ),
-                            ],
-                          ),
-                      ],
-                    ),
-                  ),
+                return _CartItemCard(
+                  item: item,
+                  index: index,
+                  isCreditMode: isCreditMode,
+                  notifier: notifier,
                 );
               },
             ),
@@ -332,6 +266,201 @@ class _DiscountButton extends StatelessWidget {
     return ActionChip(
       label: Text(label),
       onPressed: onPressed,
+    );
+  }
+}
+
+class _CartItemCard extends ConsumerStatefulWidget {
+  final CartItem item;
+  final int index;
+  final bool isCreditMode;
+  final CartNotifier notifier;
+
+  const _CartItemCard({
+    required this.item,
+    required this.index,
+    required this.isCreditMode,
+    required this.notifier,
+  });
+
+  @override
+  ConsumerState<_CartItemCard> createState() => _CartItemCardState();
+}
+
+class _CartItemCardState extends ConsumerState<_CartItemCard> {
+  late TextEditingController _discountController;
+
+  @override
+  void initState() {
+    super.initState();
+    _discountController = TextEditingController(
+      text: widget.item.discountValue == 0 ? '' : widget.item.discountValue.toStringAsFixed(2),
+    );
+  }
+
+  @override
+  void didUpdateWidget(covariant _CartItemCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.item.discountValue != oldWidget.item.discountValue) {
+      final currentTextVal = double.tryParse(_discountController.text) ?? 0.0;
+      if (currentTextVal != widget.item.discountValue) {
+        _discountController.text = widget.item.discountValue == 0
+            ? ''
+            : widget.item.discountValue.toStringAsFixed(2);
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _discountController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: Column(
+          children: [
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(widget.item.product.description),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "${widget.item.quantity} x ${widget.item.product.sellPrice} = ฿${(widget.item.quantity * widget.item.price).toStringAsFixed(2)}",
+                  ),
+                  if (widget.item.discountValue > 0)
+                    Text(
+                      "ส่วนลดรวม: -฿${widget.item.totalDiscount.toStringAsFixed(2)}",
+                      style: const TextStyle(color: Colors.red, fontSize: 12),
+                    ),
+                ],
+              ),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // แสดงราคาสุทธิ
+                  Text(
+                    "฿${widget.item.totalSoldPrice.toStringAsFixed(2)}",
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: Colors.blue,
+                    ),
+                  ),
+                  const SizedBox(width: 4), // เว้นระยะนิดนึง
+
+                  // ปุ่มลบ/ลดจำนวน
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(20), // ให้ Effect เป็นวงกลม
+                      onTap: () {
+                        widget.notifier.decreaseItem(widget.item.product);
+                      },
+                      onLongPress: () {
+                        _showDeleteConfirmDialog(context, widget.notifier, widget.item);
+                      },
+                      child: const Padding(
+                        padding: EdgeInsets.all(8.0),
+                        child: Icon(Icons.delete, color: Colors.red),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            
+            // input สำหรับ ส่วนลดต่อหน่วย
+            const Divider(),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.local_offer, size: 16, color: Colors.orange),
+                      const SizedBox(width: 4),
+                      Text(
+                        "ส่วนลด/หน่วย:",
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.grey.shade700,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Row(
+                    children: [
+                      const Text("฿ ", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                      SizedBox(
+                        width: 100,
+                        height: 36,
+                        child: TextField(
+                          controller: _discountController,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          inputFormatters: [
+                            FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
+                          ],
+                          decoration: InputDecoration(
+                            hintText: "0.00",
+                            hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(color: Colors.grey.shade300),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: const BorderSide(color: Colors.blue, width: 1.5),
+                            ),
+                          ),
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.red),
+                          onChanged: (val) {
+                            final double discount = double.tryParse(val) ?? 0.0;
+                            if (discount > widget.item.price) {
+                              widget.notifier.updateItemDiscount(widget.item.product, widget.item.price);
+                              _discountController.text = widget.item.price.toStringAsFixed(2);
+                              _discountController.selection = TextSelection.fromPosition(
+                                TextPosition(offset: _discountController.text.length),
+                              );
+                            } else {
+                              widget.notifier.updateItemDiscount(widget.item.product, discount);
+                            }
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+
+            // Checkbox (เฉพาะเครดิต)
+            if (widget.isCreditMode) ...[
+              const Divider(),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  const Text("จ่ายแล้ว"),
+                  Checkbox(
+                    value: widget.item.isPaid,
+                    onChanged: (val) {
+                      widget.notifier.togglePaid(widget.index, val ?? false);
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }
