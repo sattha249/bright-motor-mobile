@@ -9,6 +9,7 @@ import 'package:brightmotor_store/services/session_preferences.dart';
 import 'package:brightmotor_store/screens/pre_order_screen.dart';
 import 'package:brightmotor_store/screens/sync_data_screen.dart';
 import 'package:brightmotor_store/screens/sell_history_screen.dart';
+import 'package:brightmotor_store/screens/product/system_product_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
@@ -215,6 +216,25 @@ class HomeScreen extends ConsumerWidget {
     ),
   ),
 ),
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.of(context).push(MaterialPageRoute(
+                              builder: (context) => const SystemProductScreen()));
+                        },
+                        child: const Card(
+                          child: Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.inventory, size: 48, color: Colors.teal),
+                                SizedBox(height: 8),
+                                Text("สินค้าในระบบ",
+                                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ],

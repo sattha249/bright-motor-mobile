@@ -98,20 +98,24 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
     state = state.map((item) => item.copyWith(discountValue: 0.0)).toList();
   }
 
-  // 3. ใช้ส่วนลดแบบระบุจำนวนเงินต่อชิ้น สำหรับสินค้ารายชิ้น
-  void updateItemDiscount(Product product, double discount) {
+  // 3. ใช้ส่วนลดแบบระบุจำนวนเงินรวม สำหรับรายการสินค้า
+  void updateItemDiscount(Product product, double totalLineDiscount) {
     final existingIndex = state.indexWhere((item) => item.product.id == product.id);
     if (existingIndex >= 0) {
       final oldItem = state[existingIndex];
-      double validatedDiscount = discount;
-      if (validatedDiscount < 0) {
-        validatedDiscount = 0.0;
+      final maxDiscount = oldItem.price * oldItem.quantity;
+      double validatedTotalDiscount = totalLineDiscount;
+      if (validatedTotalDiscount < 0) {
+        validatedTotalDiscount = 0.0;
       }
-      if (validatedDiscount > oldItem.price) {
-        validatedDiscount = oldItem.price;
+      if (validatedTotalDiscount > maxDiscount) {
+        validatedTotalDiscount = maxDiscount;
       }
-      validatedDiscount = double.parse(validatedDiscount.toStringAsFixed(2));
-      final newItem = oldItem.copyWith(discountValue: validatedDiscount);
+      
+      // คำนวณราคาเฉลี่ยต่อหน่วย
+      final discountPerUnit = oldItem.quantity > 0 ? (validatedTotalDiscount / oldItem.quantity) : 0.0;
+
+      final newItem = oldItem.copyWith(discountValue: discountPerUnit);
       state = [
         ...state.sublist(0, existingIndex),
         newItem,

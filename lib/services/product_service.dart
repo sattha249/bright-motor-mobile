@@ -17,6 +17,7 @@ final productServiceProvider = Provider.autoDispose<ProductService>((ref) {
 abstract class ProductService {
   Future<ProductResponse> getProducts({String? category, int page = 1, int limit = 20});
   Future<ProductSearchResponse> search(String query, {int page = 1, int limit = 20});
+  Future<ProductResponse> getSystemProducts({int page = 1, int perPage = 20, String search = ''});
 }
 
 class ProductServiceImpl extends ProductService {
@@ -82,6 +83,29 @@ class ProductServiceImpl extends ProductService {
       }
     } catch (e) {
       throw Exception('Error fetching products: $e');
+    }
+  }
+
+  @override
+  Future<ProductResponse> getSystemProducts({int page = 1, int perPage = 20, String search = ''}) async {
+    try {
+      final headers = await authService.getAuthHeader();
+      
+      final encodedSearch = Uri.encodeComponent(search);
+      final url = '$baseUrl/products?page=$page&perPage=$perPage&search=$encodedSearch';
+
+      final response = await defaultHttpClient().get(
+        Uri.parse(url),
+        headers: headers,
+      );
+
+      if (response.statusCode == 200) {
+        return ProductResponse.fromJson(jsonDecode(response.body));
+      } else {
+        throw Exception('Failed to load system products: ${response.body}');
+      }
+    } catch (e) {
+      throw Exception('Error fetching system products: $e');
     }
   }
 }

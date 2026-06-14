@@ -293,20 +293,23 @@ class _CartItemCardState extends ConsumerState<_CartItemCard> {
   @override
   void initState() {
     super.initState();
+    final totalDiscount = widget.item.discountValue * widget.item.quantity;
     _discountController = TextEditingController(
-      text: widget.item.discountValue == 0 ? '' : widget.item.discountValue.toStringAsFixed(2),
+      text: totalDiscount == 0 ? '' : totalDiscount.toStringAsFixed(2),
     );
   }
 
   @override
   void didUpdateWidget(covariant _CartItemCard oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.item.discountValue != oldWidget.item.discountValue) {
+    final currentTotalDiscount = widget.item.discountValue * widget.item.quantity;
+    final oldTotalDiscount = oldWidget.item.discountValue * oldWidget.item.quantity;
+    if (currentTotalDiscount != oldTotalDiscount) {
       final currentTextVal = double.tryParse(_discountController.text) ?? 0.0;
-      if (currentTextVal != widget.item.discountValue) {
-        _discountController.text = widget.item.discountValue == 0
+      if ((currentTextVal - currentTotalDiscount).abs() > 0.01) {
+        _discountController.text = currentTotalDiscount == 0
             ? ''
-            : widget.item.discountValue.toStringAsFixed(2);
+            : currentTotalDiscount.toStringAsFixed(2);
       }
     }
   }
@@ -375,7 +378,7 @@ class _CartItemCardState extends ConsumerState<_CartItemCard> {
               ),
             ),
             
-            // input สำหรับ ส่วนลดต่อหน่วย
+            // input สำหรับ ส่วนลดรวมของรายการสินค้า
             const Divider(),
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 4.0),
@@ -387,7 +390,7 @@ class _CartItemCardState extends ConsumerState<_CartItemCard> {
                       const Icon(Icons.local_offer, size: 16, color: Colors.orange),
                       const SizedBox(width: 4),
                       Text(
-                        "ส่วนลด/หน่วย:",
+                        "ส่วนลดรวมรายการ:",
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
@@ -423,15 +426,16 @@ class _CartItemCardState extends ConsumerState<_CartItemCard> {
                           ),
                           style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.red),
                           onChanged: (val) {
-                            final double discount = double.tryParse(val) ?? 0.0;
-                            if (discount > widget.item.price) {
-                              widget.notifier.updateItemDiscount(widget.item.product, widget.item.price);
-                              _discountController.text = widget.item.price.toStringAsFixed(2);
+                            final double totalLineDiscount = double.tryParse(val) ?? 0.0;
+                            final maxAllowedDiscount = widget.item.price * widget.item.quantity;
+                            if (totalLineDiscount > maxAllowedDiscount) {
+                              widget.notifier.updateItemDiscount(widget.item.product, maxAllowedDiscount);
+                              _discountController.text = maxAllowedDiscount.toStringAsFixed(2);
                               _discountController.selection = TextSelection.fromPosition(
                                 TextPosition(offset: _discountController.text.length),
                               );
                             } else {
-                              widget.notifier.updateItemDiscount(widget.item.product, discount);
+                              widget.notifier.updateItemDiscount(widget.item.product, totalLineDiscount);
                             }
                           },
                         ),
