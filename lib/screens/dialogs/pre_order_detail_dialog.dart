@@ -386,10 +386,11 @@ class _PreOrderDetailDialogState extends ConsumerState<PreOrderDetailDialog> {
           quantity: 0
         );
 
+        final qty = int.tryParse(item['quantity'].toString()) ?? 1;
         return CartItem(
           product: product,
-          quantity: item['quantity'],
-          discountValue: discountFromApi
+          quantity: qty,
+          discountValue: CartItem.reconstructDiscountValue(discountFromApi, qty)
         );
       }).toList();
 
