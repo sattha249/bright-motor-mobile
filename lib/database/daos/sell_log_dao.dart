@@ -1,0 +1,167 @@
+import 'package:brightmotor_store/database/app_database.dart';
+import 'package:brightmotor_store/database/daos/truck_stock_dao.dart';
+import 'package:sqflite/sqflite.dart';
+
+class LocalSellLog {
+  final int? localId;
+  final int? id; // Server ID
+  final String uuid; // Idempotency UUID
+  final String billNo;
+  final int truckId;
+  final String? truckName;
+  final int customerId;
+  final int userId;
+  final double totalPrice;
+  final double pendingAmount;
+  final double interest;
+  final bool isPaid;
+  final double totalDiscount;
+  final double totalSoldPrice;
+  final String isCredit;
+  final bool isPreorder;
+  final String syncStatus; // 'pending', 'synced', 'failed'
+  final DateTime createdAt;
+  final List<LocalSellLogItem> items;
+
+  LocalSellLog({
+    this.localId,
+    this.id,
+    required this.uuid,
+    required this.billNo,
+    required this.truckId,
+    this.truckName,
+    required this.customerId,
+    required this.userId,
+    required this.totalPrice,
+    this.pendingAmount = 0.0,
+    this.interest = 0.0,
+    this.isPaid = false,
+    this.totalDiscount = 0.0,
+    required this.totalSoldPrice,
+    this.isCredit = 'cash',
+    this.isPreorder = false,
+    this.syncStatus = 'pending',
+    required this.createdAt,
+    this.items = const [],
+  });
+}
+
+class LocalSellLogItem {
+  final int? localId;
+  final int? sellLogLocalId;
+  final int productId;
+  final double quantity;
+  final double returnedQuantity;
+  final double price;
+  final double totalPrice;
+  final double discount;
+  final double soldPrice;
+  final bool isPaid;
+
+  LocalSellLogItem({
+    this.localId,
+    this.sellLogLocalId,
+    required this.productId,
+    required this.quantity,
+    this.returnedQuantity = 0.0,
+    required this.price,
+    required this.totalPrice,
+    this.discount = 0.0,
+    required this.soldPrice,
+    this.isPaid = false,
+  });
+}
+
+class SellLogDao {
+  final TruckStockDao _truckStockDao = TruckStockDao();
+
+  Future<int> insertOfflineSale(LocalSellLog sale) async {
+    final db = await AppDatabase.instance.database;
+
+    return await db.transaction((txn) async {
+      // 1. Insert header
+      final sellLogId = await txn.insert('sell_logs', {
+        'id': sale.id,
+        'uuid': sale.uuid,
+        'bill_no': sale.billNo,
+        'truck_id': sale.truckId,
+        'truck_name': sale.truckName,
+        'customer_id': sale.customerId,
+        'user_id': sale.userId,
+        'total_price': sale.totalPrice,
+        'pending_amount': sale.pendingAmount,
+        'interest': sale.interest,
+        'is_paid': sale.isPaid ? 1 : 0,
+        'total_discount': sale.totalDiscount,
+        'total_sold_price': sale.totalSoldPrice,
+        'is_credit': sale.isCredit,
+        'is_preorder': sale.isPreorder ? 1 : 0,
+        'sync_status': sale.syncStatus,
+        'created_at': sale.createdAt.toIso8601String(),
+        'updated_at': DateTime.now().toIso8601String(),
+      });
+
+      // 2. Insert items and deduct local truck stock
+      for (final item in sale.items) {
+        await txn.insert('sell_log_items', {
+          'sell_log_local_id': sellLogId,
+          'product_id': item.productId,
+          'quantity': item.quantity,
+          'returned_quantity': item.returnedQuantity,
+          'price': item.price,
+          'total_price': item.totalPrice,
+          'discount': item.discount,
+          'sold_price': item.soldPrice,
+          'is_paid': item.isPaid ? 1 : 0,
+          'created_at': sale.createdAt.toIso8601String(),
+          'updated_at': DateTime.now().toIso8601String(),
+        });
+
+        // Deduct offline stock in truck!
+        await _truckStockDao.deductStockQuantity(
+          sale.truckId,
+          item.productId,
+          item.quantity,
+        );
+      }
+
+      return sellLogId;
+    });
+  }
+
+  Future<List<Map<String, dynamic>>> getPendingSyncSales() async {
+    final db = await AppDatabase.instance.database;
+    final sales = await db.query(
+      'sell_logs',
+      where: 'sync_status = ?',
+      whereArgs: ['pending'],
+    );
+
+    List<Map<String, dynamic>> results = [];
+    for (final sale in sales) {
+      final items = await db.query(
+        'sell_log_items',
+        where: 'sell_log_local_id = ?',
+        whereArgs: [sale['local_id']],
+      );
+      final mutableSale = Map<String, dynamic>.from(sale);
+      mutableSale['items'] = items;
+      results.add(mutableSale);
+    }
+    return results;
+  }
+
+  Future<void> markSynced(int localId, int serverId) async {
+    final db = await AppDatabase.instance.database;
+    await db.update(
+      'sell_logs',
+      {
+        'id': serverId,
+        'sync_status': 'synced',
+        'updated_at': DateTime.now().toIso8601String(),
+      },
+      where: 'local_id = ?',
+      whereArgs: [localId],
+    );
+  }
+}

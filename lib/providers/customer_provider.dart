@@ -1,4 +1,4 @@
-import 'package:brightmotor_store/models/customer_model.dart';
+import 'package:brightmotor_store/models/customer.dart';
 import 'package:brightmotor_store/services/customer_service.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
@@ -59,17 +59,18 @@ class CustomerNotifier extends StateNotifier<CustomerState> {
     try {
       final response = await _service.getCustomers(
         page: state.currentPage,
-        search: state.searchKeyword,
+        query: state.searchKeyword,
       );
 
-      final newCustomers = response.data;
-      final meta = response.meta;
+      final List<Customer> newCustomers = (response['customers'] as List<Customer>?) ?? [];
+      final meta = response['meta'] as Map<String, dynamic>?;
+      final int lastPage = meta != null ? (meta['last_page'] ?? 1) : 1;
 
       state = state.copyWith(
         isLoading: false,
         customers: [...state.customers, ...newCustomers],
         currentPage: state.currentPage + 1,
-        hasMore: meta != null ? state.currentPage < meta.lastPage : false,
+        hasMore: state.currentPage < lastPage,
       );
     } catch (e) {
       state = state.copyWith(isLoading: false);

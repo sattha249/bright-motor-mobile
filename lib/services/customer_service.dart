@@ -3,6 +3,11 @@ import 'package:brightmotor_store/providers/network_provider.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../models/customer.dart';
 import 'session_preferences.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
+
+final customerServiceProvider = Provider.autoDispose<CustomerService>((ref) {
+  return CustomerServiceImpl();
+});
 
 abstract class CustomerService {
   Future<Map<String, dynamic>> getCustomers({required String query, int page = 1});
@@ -47,7 +52,7 @@ class MockCustomerService extends CustomerService {
 }
 
 class CustomerServiceImpl extends CustomerService {
-  String get baseUrl => dotenv.env['API_URL'] ?? 'http://localhost:3333';
+  String get baseUrl => dotenv.env['API_URL'] ?? 'http://10.0.2.2:3333';
   final SessionPreferences _authService = SessionPreferences();
 
   @override
