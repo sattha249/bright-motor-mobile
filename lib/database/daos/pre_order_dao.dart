@@ -1,4 +1,5 @@
 import 'package:brightmotor_store/database/app_database.dart';
+import 'package:brightmotor_store/models/pre_order_model.dart';
 import 'package:sqflite/sqflite.dart';
 
 class LocalPreOrder {
@@ -96,6 +97,61 @@ class PreOrderDao {
 
       return preOrderId;
     });
+  }
+
+  Future<void> upsertServerPreOrdersBatch(List<PreOrder> serverOrders) async {
+    final db = await AppDatabase.instance.database;
+    for (final order in serverOrders) {
+      final existing = await db.query(
+        'pre_orders',
+        where: 'id = ?',
+        whereArgs: [order.id],
+        limit: 1,
+      );
+
+      final totalSold = double.tryParse(order.totalSoldPrice) ?? 0.0;
+
+      if (existing.isNotEmpty) {
+        final localId = existing.first['local_id'] as int;
+        await db.update(
+          'pre_orders',
+          {
+            'status': order.status,
+            'total_sold_price': totalSold,
+            'sync_status': 'synced',
+            'updated_at': DateTime.now().toIso8601String(),
+          },
+          where: 'local_id = ?',
+          whereArgs: [localId],
+        );
+      } else {
+        await db.transaction((txn) async {
+          final localId = await txn.insert('pre_orders', {
+            'id': order.id,
+            'bill_no': order.billNo,
+            'status': order.status,
+            'total_sold_price': totalSold,
+            'is_credit': order.isCredit,
+            'sync_status': 'synced',
+            'created_at': order.createdAt?.toIso8601String() ??
+                DateTime.now().toIso8601String(),
+            'updated_at': DateTime.now().toIso8601String(),
+          });
+
+          for (final item in order.items) {
+            await txn.insert('pre_order_items', {
+              'pre_order_local_id': localId,
+              'product_id': item.id,
+              'quantity': item.quantity.toDouble(),
+              'price': double.tryParse(item.price) ?? 0.0,
+              'sold_price': double.tryParse(item.price) ?? 0.0,
+              'created_at': DateTime.now().toIso8601String(),
+              'updated_at': DateTime.now().toIso8601String(),
+            });
+          }
+        });
+      }
+    }
   }
 
   Future<List<Map<String, dynamic>>> getPendingSyncPreOrders() async {

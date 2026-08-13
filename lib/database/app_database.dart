@@ -1,5 +1,8 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 class AppDatabase {
   static final AppDatabase instance = AppDatabase._init();
@@ -14,6 +17,11 @@ class AppDatabase {
   }
 
   Future<Database> _initDB(String filePath) async {
+    if (!kIsWeb && (Platform.isMacOS || Platform.isWindows || Platform.isLinux)) {
+      sqfliteFfiInit();
+      databaseFactory = databaseFactoryFfi;
+    }
+
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, filePath);
 

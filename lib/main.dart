@@ -1,14 +1,22 @@
 import 'dart:convert';
-
+import 'dart:io';
 import 'package:brightmotor_store/screens/home/home_screen.dart';
 import 'package:brightmotor_store/services/session_preferences.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart' hide ChangeNotifierProvider;
+import 'package:sqflite/sqflite.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'screens/login_screen.dart';
 
 void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  if (!kIsWeb && (Platform.isMacOS || Platform.isWindows || Platform.isLinux)) {
+    sqfliteFfiInit();
+    databaseFactory = databaseFactoryFfi;
+  }
   await dotenv.load(fileName: ".env");
   debugPrint('API URL from env: ${dotenv.env['API_URL']}');
   runApp(const MyApp());

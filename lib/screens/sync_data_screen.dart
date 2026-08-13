@@ -1,3 +1,4 @@
+import 'package:brightmotor_store/providers/truck_provider.dart';
 import 'package:brightmotor_store/services/sync_service.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -17,17 +18,27 @@ class _SyncDataScreenState extends ConsumerState<SyncDataScreen> {
   SyncStatus _status = SyncStatus.idle; 
 
   Future<void> _startSync() async {
+    final truck = ref.read(currentTruckProvider);
+    if (truck?.truckId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('ไม่พบข้อมูลรถ (Truck ID)')),
+      );
+      return;
+    }
+
     setState(() {
       _status = SyncStatus.loading; // เริ่มหมุน
     });
 
-    // เรียก Service
-    final isSuccess = await ref.read(syncServiceProvider).syncData();
+    // เรียก Service ดึงข้อมูลทั้งหมดเฉพาะรถคันนี้ลง SQLite
+    final isSuccess = await ref.read(syncServiceProvider).syncData(truck!.truckId!);
 
     // อัปเดตผลลัพธ์
-    setState(() {
-      _status = isSuccess ? SyncStatus.success : SyncStatus.error;
-    });
+    if (mounted) {
+      setState(() {
+        _status = isSuccess ? SyncStatus.success : SyncStatus.error;
+      });
+    }
   }
 
   @override

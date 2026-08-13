@@ -129,6 +129,98 @@ class SellLogDao {
     });
   }
 
+  Future<void> upsertServerSellLogsBatch(
+      List<Map<String, dynamic>> rawLogs) async {
+    final db = await AppDatabase.instance.database;
+    for (final logMap in rawLogs) {
+      final serverId = logMap['id'] as int?;
+      if (serverId == null) continue;
+
+      final existing = await db.query(
+        'sell_logs',
+        where: 'id = ?',
+        whereArgs: [serverId],
+        limit: 1,
+      );
+
+      final totalPrice = (logMap['total_price'] as num?)?.toDouble() ?? 0.0;
+      final totalDiscount =
+          (logMap['total_discount'] as num?)?.toDouble() ?? 0.0;
+      final totalSoldPrice =
+          (logMap['total_sold_price'] as num?)?.toDouble() ?? totalPrice;
+
+      if (existing.isNotEmpty) {
+        final localId = existing.first['local_id'] as int;
+        await db.update(
+          'sell_logs',
+          {
+            'total_price': totalPrice,
+            'total_discount': totalDiscount,
+            'total_sold_price': totalSoldPrice,
+            'sync_status': 'synced',
+            'updated_at': DateTime.now().toIso8601String(),
+          },
+          where: 'local_id = ?',
+          whereArgs: [localId],
+        );
+      } else {
+        await db.transaction((txn) async {
+          final localId = await txn.insert('sell_logs', {
+            'id': serverId,
+            'bill_no': logMap['bill_no'] ?? '-',
+            'truck_id': logMap['truck_id'],
+            'truck_name': logMap['truck_name'],
+            'customer_id': logMap['customer_id'],
+            'user_id': logMap['user_id'],
+            'total_price': totalPrice,
+            'pending_amount':
+                (logMap['pending_amount'] as num?)?.toDouble() ?? 0.0,
+            'interest': (logMap['interest'] as num?)?.toDouble() ?? 0.0,
+            'is_paid': (logMap['is_paid'] == true || logMap['is_paid'] == 1)
+                ? 1
+                : 0,
+            'total_discount': totalDiscount,
+            'total_sold_price': totalSoldPrice,
+            'is_credit': logMap['is_credit'] ?? 'cash',
+            'is_preorder': (logMap['is_preorder'] == true ||
+                    logMap['is_preorder'] == 1)
+                ? 1
+                : 0,
+            'sync_status': 'synced',
+            'created_at': logMap['created_at'] ??
+                DateTime.now().toIso8601String(),
+            'updated_at': DateTime.now().toIso8601String(),
+          });
+
+          final items = logMap['items'] as List?;
+          if (items != null) {
+            for (final itemMap in items) {
+              await txn.insert('sell_log_items', {
+                'sell_log_local_id': localId,
+                'product_id': itemMap['product_id'] ?? 0,
+                'quantity': (itemMap['quantity'] as num?)?.toDouble() ?? 0.0,
+                'returned_quantity':
+                    (itemMap['returned_quantity'] as num?)?.toDouble() ?? 0.0,
+                'price': (itemMap['price'] as num?)?.toDouble() ?? 0.0,
+                'total_price':
+                    (itemMap['total_price'] as num?)?.toDouble() ?? 0.0,
+                'discount': (itemMap['discount'] as num?)?.toDouble() ?? 0.0,
+                'sold_price':
+                    (itemMap['sold_price'] as num?)?.toDouble() ?? 0.0,
+                'is_paid': (itemMap['is_paid'] == true ||
+                        itemMap['is_paid'] == 1)
+                    ? 1
+                    : 0,
+                'created_at': DateTime.now().toIso8601String(),
+                'updated_at': DateTime.now().toIso8601String(),
+              });
+            }
+          }
+        });
+      }
+    }
+  }
+
   Future<List<Map<String, dynamic>>> getPendingSyncSales() async {
     final db = await AppDatabase.instance.database;
     final sales = await db.query(
