@@ -1,7 +1,9 @@
+import 'package:brightmotor_store/database/daos/user_dao.dart';
 import 'package:brightmotor_store/models/product_model.dart';
 import 'package:brightmotor_store/providers/truck_provider.dart';
 import 'package:brightmotor_store/services/product_service.dart';
 import 'package:brightmotor_store/services/truck_service.dart';
+import 'package:flutter/foundation.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 final currentTruckIdProvider = Provider.autoDispose<int?>((ref) {
@@ -49,6 +51,7 @@ class ProductNotifier extends StateNotifier<List<Product>> {
   final ProductService service;
   final TruckService truckService;
   final int? truckId;
+  final UserDao _userDao = UserDao();
 
   List<Product> _originProducts = [];
 
@@ -59,15 +62,19 @@ class ProductNotifier extends StateNotifier<List<Product>> {
   }) : super([]);
 
   void reload() async {
-    if (truckId != null) {
+    int? activeTruckId = truckId;
+    if (activeTruckId == null || activeTruckId <= 0) {
+      final user = await _userDao.getActiveUser();
+      activeTruckId = user?.truckId;
+    }
+
+    if (activeTruckId != null && activeTruckId > 0) {
       try {
-        final response = await truckService.getTruckStocks(truckId!, limit: 300);
+        final response = await truckService.getTruckStocks(activeTruckId, limit: 300);
         
         final data = response.data
-            // [แก้ไข] กรอง item ที่ product เป็น null ทิ้งไปก่อน
             .where((stockItem) => stockItem.product != null) 
             .map((stockItem) {
-              // ตอนนี้มั่นใจได้แล้วว่า product ไม่ null ใส่ ! ได้เลย
               final product = stockItem.product!; 
               return product.copyWith(quantity: stockItem.quantity);
             }).toList();
@@ -75,13 +82,12 @@ class ProductNotifier extends StateNotifier<List<Product>> {
         _originProducts = data;
         state = data;
       } catch (e) {
-        print("Error loading products: $e");
+        debugPrint("Error loading products: $e");
       }
     }
   }
 
   void search(String query) async {
-    print("search($query)");
     if (query.isNotEmpty) {
       state = _originProducts.where((p) => p.description.contains(query)).toList();
     } else {

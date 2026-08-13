@@ -36,13 +36,13 @@ class Truck {
   });
 
   factory Truck.fromJson(Map<String, dynamic> json) => Truck(
-        id: json["id"],
+        id: json["id"] ?? 0,
         truckId: json["truck_id"],
         productId: json["product_id"],
-        quantity: json["quantity"],
+        quantity: json["quantity"] ?? 0,
         createdAt: json["created_at"],
         updatedAt: json["updated_at"],
-        product: Product.fromJson(json["product"]),
+        product: json["product"] != null ? Product.fromJson(json["product"]) : null,
       );
 
   Map<String, dynamic> toJson() => {

@@ -1,30 +1,26 @@
 import 'dart:convert';
+import 'package:brightmotor_store/database/daos/sell_log_dao.dart';
 import 'package:brightmotor_store/models/cart_model.dart';
 import 'package:brightmotor_store/models/product_model.dart';
+import 'package:brightmotor_store/providers/network_provider.dart';
 import 'package:brightmotor_store/services/session_preferences.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart'; // อย่าลืม import dotenv
+import 'package:flutter/foundation.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import 'package:http/http.dart' as http;
 
-// 1. สร้าง Interface
 abstract class SellHistoryService {
   Future<Map<String, dynamic>> getSellLogs({required int truckId, int page = 1});
   List<CartItem> convertLogToCartItems(List<dynamic> itemsData);
 }
 
-// 2. Provider เรียกใช้ Implementation
 final sellHistoryServiceProvider = Provider<SellHistoryService>((ref) {
   return SellHistoryServiceImpl();
 });
 
-// ฟังก์ชันจำลอง defaultHttpClient (ถ้าในโปรเจคมีอยู่แล้วให้ใช้ของโปรเจค)
-http.Client defaultHttpClient() => http.Client();
-
-// 3. Implementation Class (Logic ที่คุณต้องการ)
 class SellHistoryServiceImpl implements SellHistoryService {
   final SessionPreferences preferences = SessionPreferences();
-  
-  // ใช้ dotenv ตามแบบฉบับ
+  final SellLogDao _sellLogDao = SellLogDao();
+
   String get baseUrl => dotenv.env['API_URL'] ?? 'http://10.0.2.2:3333';
 
   @override
@@ -40,52 +36,72 @@ class SellHistoryServiceImpl implements SellHistoryService {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
-      );
+      ).timeout(const Duration(seconds: 4));
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        
-        // 2. [แก้ไข] Return ข้อมูลทั้งก้อน เพื่อให้ UI เข้าถึง key 'meta' ได้
         if (data is Map<String, dynamic>) {
-          // กรณี API มาตามมาตรฐาน: { "data": [...], "meta": {...} }
-          return data; 
+          final rawLogs = (data['data'] as List?)
+                  ?.map((j) => Map<String, dynamic>.from(j))
+                  .toList() ??
+              [];
+          await _sellLogDao.upsertServerSellLogsBatch(rawLogs);
+          return data;
         } else if (data is List) {
-          // กรณี API ส่งมาแค่ List เพียวๆ (กันเหนียวไว้ก่อน)
-          // เราต้องห่อมันเพื่อให้หน้า UI ไม่พังเมื่อพยายามเข้าถึง ['meta']
+          final rawLogs =
+              data.map((j) => Map<String, dynamic>.from(j)).toList();
+          await _sellLogDao.upsertServerSellLogsBatch(rawLogs);
           return {
             'data': data,
-            'meta': {
-              'current_page': 1,
-              'last_page': 1,
-              'total': data.length
-            }
+            'meta': {'current_page': 1, 'last_page': 1, 'total': data.length}
           };
         }
-        
-        return {'data': [], 'meta': {}};
-      } else {
-        throw Exception('Failed to load sell logs: ${response.statusCode} ${response.body}');
       }
     } catch (e) {
-      throw Exception('Error: $e');
+      debugPrint('Online sell log fetch failed, falling back to SQLite: $e');
     }
+
+    // --- Fallback: Read ALL Sales from Local SQLite DB ---
+    final allLocalSales = await _sellLogDao.getAllSellLogs(truckId);
+    final localList = allLocalSales.map((map) {
+      return {
+        'id': map['id'] ?? map['local_id'],
+        'bill_no': map['bill_no'] ?? '-',
+        'truck_id': map['truck_id'],
+        'truck_name': map['truck_name'] ?? 'รถ (ออฟไลน์)',
+        'total_price': map['total_price'] ?? 0.0,
+        'total_sold_price': map['total_sold_price'] ?? map['total_price'],
+        'total_discount': map['total_discount'] ?? 0.0,
+        'is_credit': map['is_credit'] ?? 'cash',
+        'is_paid': map['is_paid'] == 1,
+        'created_at': map['created_at'] ?? DateTime.now().toIso8601String(),
+        'customer': map['customer'] ?? {'name': 'ลูกค้าทั่วไป', 'tel': '-'},
+        'items': map['items'] ?? [],
+      };
+    }).toList();
+
+    return {
+      'data': localList,
+      'meta': {
+        'total': localList.length,
+        'per_page': localList.isNotEmpty ? localList.length : 10,
+        'current_page': 1,
+        'last_page': 1,
+      },
+    };
   }
 
-  // Helper สำหรับแปลงข้อมูลไปพิมพ์ (Logic เดิมแต่ย้ายมาให้เป็นระเบียบ)
   @override
   List<CartItem> convertLogToCartItems(List<dynamic> itemsData) {
-    print(itemsData);
     return itemsData.map((item) {
-      // 1. ดึงส่วนลด และ ราคาสุทธิ จาก API (รองรับทั้ง snake_case และ camelCase)
-      final discountFromApi = double.tryParse(item['discount']?.toString() ?? '') ?? 
-                             double.tryParse(item['discountValue']?.toString() ?? '') ?? 0.0;
-      final soldPriceFromApi = double.tryParse(item['sold_price']?.toString() ?? '') ?? 
-                              double.tryParse(item['soldPrice']?.toString() ?? '') ?? 0.0;
+      final discountFromApi = double.tryParse(item['discount']?.toString() ?? '') ??
+          double.tryParse(item['discountValue']?.toString() ?? '') ??
+          0.0;
+      final soldPriceFromApi = double.tryParse(item['sold_price']?.toString() ?? '') ??
+          double.tryParse(item['soldPrice']?.toString() ?? '') ??
+          0.0;
       final priceFromApi = double.tryParse(item['price']?.toString() ?? '') ?? 0.0;
 
-      // 2. ป้องกัน Bug การลดราคาสองเด้ง (Double Discount)
-      // โดยปกติ 'price' คือราคาเต็ม และ 'sold_price' คือราคาหลังลด
-      // แต่กรณีที่ 'price' ถูกบันทึกเป็นราคาที่ลดแล้ว (price == sold_price) เราจะกู้ราคาเต็มกลับมา
       double finalSellPrice = priceFromApi;
       if (soldPriceFromApi > 0 && discountFromApi > 0) {
         if (priceFromApi <= 0 || (priceFromApi - soldPriceFromApi).abs() < 0.01) {
@@ -113,7 +129,7 @@ class SellHistoryServiceImpl implements SellHistoryService {
       return CartItem(
         product: product,
         quantity: qty,
-        discountValue: CartItem.reconstructDiscountValue(discountFromApi, qty), 
+        discountValue: CartItem.reconstructDiscountValue(discountFromApi, qty),
       );
     }).toList();
   }

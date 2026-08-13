@@ -49,28 +49,81 @@ class SyncServiceImpl implements SyncService {
       final token = await preferences.getToken();
       if (token == null || token.isEmpty) return false;
 
-      // 2. Sync Master Customers
+      // 2. Push any pending offline transactions to server first!
+      await pushPendingOfflineTransactions(token);
+
+      // 3. Sync Master Customers
       await _syncCustomers(token);
 
-      // 3. Sync Truck Stocks & Product Catalog (for THIS truck)
+      // 4. Sync Truck Stocks & Product Catalog (for THIS truck)
       await _syncTruckStock(token, truckId);
 
-      // 4. Sync PreOrders (for THIS truck)
+      // 5. Sync PreOrders (for THIS truck)
       await _syncPreOrders(token, truckId);
 
-      // 5. Sync Sell Logs / Sales History (for THIS truck)
+      // 6. Sync Sell Logs / Sales History (for THIS truck)
       await _syncSellLogs(token, truckId);
 
-      // 6. Sync User Profile & Truck Info
+      // 7. Sync User Profile & Truck Info
       await _syncUserProfile(token);
 
-      // 7. Sync QR Code Image
+      // 8. Sync QR Code Image
       await _syncQrCodeImage(token);
 
       return true;
     } catch (e) {
       debugPrint('Sync engine error: $e');
       return false;
+    }
+  }
+
+  Future<void> pushPendingOfflineTransactions(String token) async {
+    try {
+      final pendingSales = await _sellLogDao.getPendingSyncSales();
+      for (final sale in pendingSales) {
+        final localId = sale['local_id'] as int;
+        final uuid = sale['uuid'] as String? ?? '';
+
+        final items = (sale['items'] as List?) ?? [];
+        final itemsJson = items.map((item) => {
+          "productId": item['product_id'],
+          "quantity": item['quantity'],
+          "price": item['price'],
+          "discount": (item['discount'] as num?)?.toStringAsFixed(2) ?? '0.00',
+          "sold_price": (item['sold_price'] as num?)?.toStringAsFixed(2) ?? '0.00',
+          "is_paid": item['is_paid'] == 1,
+        }).toList();
+
+        final body = {
+          "uuid": uuid,
+          "truckId": sale['truck_id'],
+          "customerId": sale['customer_id'],
+          "isCredit": sale['is_credit'] == 'cash' ? null : sale['is_credit'],
+          "totalDiscount": (sale['total_discount'] as num?)?.toStringAsFixed(2) ?? '0.00',
+          "totalSoldPrice": (sale['total_sold_price'] as num?)?.toStringAsFixed(2) ?? '0.00',
+          "items": itemsJson
+        };
+
+        final response = await defaultHttpClient().post(
+          Uri.parse('$baseUrl/sell-logs'),
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+            'X-Idempotency-Key': uuid,
+          },
+          body: jsonEncode(body),
+        ).timeout(const Duration(seconds: 5));
+
+        if (response.statusCode == 200 || response.statusCode == 201) {
+          final responseData = jsonDecode(response.body);
+          final serverId = responseData['id'] ?? responseData['data']?['id'];
+          if (serverId != null) {
+            await _sellLogDao.markSynced(localId, serverId as int);
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error pushing pending offline transactions: $e');
     }
   }
 

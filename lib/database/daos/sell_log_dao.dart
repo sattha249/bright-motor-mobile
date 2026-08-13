@@ -117,11 +117,12 @@ class SellLogDao {
           'updated_at': DateTime.now().toIso8601String(),
         });
 
-        // Deduct offline stock in truck!
+        // Deduct offline stock in truck using active transaction executor!
         await _truckStockDao.deductStockQuantity(
           sale.truckId,
           item.productId,
           item.quantity,
+          executor: txn,
         );
       }
 
@@ -197,7 +198,7 @@ class SellLogDao {
             for (final itemMap in items) {
               await txn.insert('sell_log_items', {
                 'sell_log_local_id': localId,
-                'product_id': itemMap['product_id'] ?? 0,
+                'product_id': itemMap['product_id'] ?? itemMap['productId'] ?? 0,
                 'quantity': (itemMap['quantity'] as num?)?.toDouble() ?? 0.0,
                 'returned_quantity':
                     (itemMap['returned_quantity'] as num?)?.toDouble() ?? 0.0,
@@ -219,6 +220,45 @@ class SellLogDao {
         });
       }
     }
+  }
+
+  Future<List<Map<String, dynamic>>> getAllSellLogs(int truckId) async {
+    final db = await AppDatabase.instance.database;
+    final sales = await db.rawQuery('''
+      SELECT sl.*, c.name as customer_name, c.tel as customer_tel
+      FROM sell_logs sl
+      LEFT JOIN customers c ON sl.customer_id = c.id
+      WHERE sl.truck_id = ?
+      ORDER BY sl.created_at DESC
+    ''', [truckId]);
+
+    List<Map<String, dynamic>> results = [];
+    for (final sale in sales) {
+      final items = await db.rawQuery('''
+        SELECT sli.*, p.description, p.product_code, p.unit
+        FROM sell_log_items sli
+        LEFT JOIN products p ON sli.product_id = p.id
+        WHERE sli.sell_log_local_id = ?
+      ''', [sale['local_id']]);
+
+      final mutableSale = Map<String, dynamic>.from(sale);
+      mutableSale['items'] = items.map((i) {
+        final m = Map<String, dynamic>.from(i);
+        m['product'] = {
+          'description': i['description'] ?? 'สินค้า',
+          'product_code': i['product_code'] ?? '-',
+          'unit': i['unit'] ?? '',
+        };
+        return m;
+      }).toList();
+
+      mutableSale['customer'] = {
+        'name': sale['customer_name'] ?? 'ลูกค้าทั่วไป',
+        'tel': sale['customer_tel'] ?? '-',
+      };
+      results.add(mutableSale);
+    }
+    return results;
   }
 
   Future<List<Map<String, dynamic>>> getPendingSyncSales() async {

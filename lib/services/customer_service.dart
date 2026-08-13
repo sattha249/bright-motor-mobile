@@ -1,5 +1,7 @@
 import 'dart:convert';
+import 'package:brightmotor_store/database/daos/customer_dao.dart';
 import 'package:brightmotor_store/providers/network_provider.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../models/customer.dart';
 import 'session_preferences.dart';
@@ -17,7 +19,6 @@ abstract class CustomerService {
 class MockCustomerService extends CustomerService {
   @override
   Future<Map<String, dynamic>> getCustomers({required String query, int page = 1}) async {
-    // จำลอง Delay เพื่อให้เห็น Loading
     await Future.delayed(const Duration(milliseconds: 500)); 
     
     return {
@@ -37,7 +38,7 @@ class MockCustomerService extends CustomerService {
       ],
       'meta': {
         'total': 1,
-        'per_page': 10, // แก้ key ให้ตรงกับ API จริง (snake_case)
+        'per_page': 10,
         'current_page': 1,
         'last_page': 1,
       },
@@ -54,54 +55,62 @@ class MockCustomerService extends CustomerService {
 class CustomerServiceImpl extends CustomerService {
   String get baseUrl => dotenv.env['API_URL'] ?? 'http://10.0.2.2:3333';
   final SessionPreferences _authService = SessionPreferences();
+  final CustomerDao _customerDao = CustomerDao();
 
   @override
   Future<Map<String, dynamic>> getCustomers({required String query, int page = 1}) async {
     try {
       final token = await _authService.getToken();
 
-      // 1. สร้าง Query Parameters แบบรวมศูนย์ (ไม่ต้องแยก if/else)
       final Map<String, String> queryParams = {
         'page': page.toString(),
       };
       
-      // ถ้ามีคำค้นหา ให้เพิ่มเข้าไป
       if (query.isNotEmpty) {
         queryParams['search'] = query;
       }
 
-      // 2. สร้าง URI ที่ถูกต้อง (รองรับภาษาไทยและอักขระพิเศษ)
       final uri = Uri.parse('$baseUrl/customers').replace(queryParameters: queryParams);
 
       final response = await defaultHttpClient().get(
         uri,
         headers: {
           'Authorization': 'Bearer $token',
-          'Accept': 'application/json', // ควรใส่ Accept ด้วย
+          'Accept': 'application/json',
         },
-      );
+      ).timeout(const Duration(seconds: 4));
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        
-        // 3. ดัก Null Safety: กรณี data['data'] เป็น null ให้ใช้ [] แทน
         final List<dynamic> jsonList = data['data'] ?? []; 
         
         final List<Customer> customers = jsonList
             .map((json) => Customer.fromJson(json))
             .toList();
 
-        // ส่งกลับในรูปแบบ Map ที่ UI รอรับ
+        // Also cache server results into local SQLite
+        await _customerDao.insertOrUpdateBatch(customers);
+
         return {
           'customers': customers,
           'meta': data['meta'],
         };
-      } else {
-        throw Exception('Failed to load customers: ${response.statusCode}');
       }
     } catch (e) {
-      throw Exception('Error getting customers: $e');
+      debugPrint('Online customer fetch failed, falling back to SQLite: $e');
     }
+
+    // --- Fallback: Read from Local SQLite DB ---
+    final localCustomers = await _customerDao.getAllCustomers(query: query);
+    return {
+      'customers': localCustomers,
+      'meta': {
+        'total': localCustomers.length,
+        'per_page': localCustomers.isNotEmpty ? localCustomers.length : 10,
+        'current_page': 1,
+        'last_page': 1,
+      },
+    };
   }
 
   @override
@@ -118,14 +127,14 @@ class CustomerServiceImpl extends CustomerService {
           'Accept': 'application/json',
         },
         body: jsonEncode(customer.toJson()),
-      );
+      ).timeout(const Duration(seconds: 4));
 
-      // ยอมรับทั้ง 200 และ 201 (Created)
       if (response.statusCode != 200 && response.statusCode != 201) {
         throw Exception('Failed to create customer: ${response.body}');
       }
     } catch (e) {
-      throw Exception('Error creating customer: $e');
+      // Save customer to local SQLite if offline
+      await _customerDao.insertOrUpdateBatch([customer]);
     }
   }
 }

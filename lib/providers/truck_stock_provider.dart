@@ -1,3 +1,4 @@
+import 'package:brightmotor_store/database/daos/user_dao.dart';
 import 'package:brightmotor_store/models/truck_stock_model.dart';
 import 'package:brightmotor_store/providers/truck_provider.dart';
 import 'package:brightmotor_store/services/truck_stock_service.dart';
@@ -8,13 +9,13 @@ final truckStockProvider = StateNotifierProvider.autoDispose<TruckStockNotifier,
   final service = ref.watch(truckStockServiceProvider);
   final truck = ref.watch(currentTruckProvider);
   
-  // ส่ง truckId เข้าไป ถ้าไม่มี truckId ให้เป็น null
   return TruckStockNotifier(service, truck?.truckId);
 });
 
 class TruckStockNotifier extends StateNotifier<List<TruckStockItem>> {
   final TruckStockService _service;
   final int? _truckId;
+  final UserDao _userDao = UserDao();
 
   // Pagination State
   int _page = 1;
@@ -27,9 +28,7 @@ class TruckStockNotifier extends StateNotifier<List<TruckStockItem>> {
   bool get isLoading => _isLoading;
 
   TruckStockNotifier(this._service, this._truckId) : super([]) {
-    if (_truckId != null) {
-      loadInitial();
-    }
+    loadInitial();
   }
 
   // โหลดครั้งแรก
@@ -51,12 +50,21 @@ class TruckStockNotifier extends StateNotifier<List<TruckStockItem>> {
 
   // Logic กลางในการดึงข้อมูล
   Future<void> fetchData({required int page, required String query, bool isAppend = false}) async {
-    if (_truckId == null) return;
+    int? activeTruckId = _truckId;
+    if (activeTruckId == null || activeTruckId <= 0) {
+      final user = await _userDao.getActiveUser();
+      activeTruckId = user?.truckId;
+    }
+
+    if (activeTruckId == null || activeTruckId <= 0) {
+      _isLoading = false;
+      return;
+    }
 
     _isLoading = true;
     try {
       final result = await _service.getStocks(
-        truckId: _truckId!,
+        truckId: activeTruckId,
         query: query,
         page: page,
       );
@@ -72,7 +80,6 @@ class TruckStockNotifier extends StateNotifier<List<TruckStockItem>> {
 
       _page = page;
       
-      // เช็คว่ามีหน้าถัดไปไหมจาก meta
       if (meta != null) {
         final currentPage = meta['current_page'] as int;
         final lastPage = meta['last_page'] as int;
@@ -83,7 +90,7 @@ class TruckStockNotifier extends StateNotifier<List<TruckStockItem>> {
 
     } catch (e) {
       debugPrint("Error loading truck stocks: $e");
-      _hasMore = false; // หยุดโหลดถ้า error
+      _hasMore = false;
     } finally {
       _isLoading = false;
     }

@@ -1,7 +1,8 @@
-import 'package:brightmotor_store/models/cart_model.dart'; // import CartItem
+import 'package:brightmotor_store/database/daos/user_dao.dart';
+import 'package:brightmotor_store/models/cart_model.dart';
 import 'package:brightmotor_store/printer/print_service.dart';
 import 'package:brightmotor_store/providers/truck_provider.dart';
-import 'package:brightmotor_store/services/sell_history_service.dart'; // ตรวจสอบ path ให้ถูกต้อง
+import 'package:brightmotor_store/services/sell_history_service.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -12,14 +13,18 @@ final sellHistoryPageProvider = StateProvider.autoDispose<int>((ref) => 1);
 // 2. Provider ดึงข้อมูล (รับค่าเป็น Map เพื่อเอา meta data)
 final sellLogsResultProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
   final truck = ref.watch(currentTruckProvider);
-  final page = ref.watch(sellHistoryPageProvider); // ฟังค่าเลขหน้า ถ้าเปลี่ยนจะโหลดใหม่
+  final page = ref.watch(sellHistoryPageProvider);
 
-  if (truck?.truckId == null) return {};
+  int? truckId = truck?.truckId;
+  if (truckId == null || truckId <= 0) {
+    final user = await UserDao().getActiveUser();
+    truckId = user?.truckId;
+  }
+
+  if (truckId == null || truckId <= 0) return {};
 
   final service = ref.read(sellHistoryServiceProvider);
-  
-  // เรียก Service ที่เราแก้ไปเมื่อกี้ (return Map)
-  return service.getSellLogs(truckId: truck!.truckId!, page: page);
+  return service.getSellLogs(truckId: truckId, page: page);
 });
 
 class SellHistoryScreen extends ConsumerWidget {

@@ -68,8 +68,9 @@ class TruckStockDao {
     }).toList();
   }
 
-  Future<double> getAvailableQuantity(int truckId, int productId) async {
-    final db = await AppDatabase.instance.database;
+  Future<double> getAvailableQuantity(int truckId, int productId,
+      {DatabaseExecutor? executor}) async {
+    final db = executor ?? await AppDatabase.instance.database;
     final maps = await db.query(
       'truck_stocks',
       columns: ['quantity'],
@@ -85,9 +86,11 @@ class TruckStockDao {
   }
 
   Future<bool> deductStockQuantity(
-      int truckId, int productId, double qtyToDeduct) async {
-    final db = await AppDatabase.instance.database;
-    final currentQty = await getAvailableQuantity(truckId, productId);
+      int truckId, int productId, double qtyToDeduct,
+      {DatabaseExecutor? executor}) async {
+    final db = executor ?? await AppDatabase.instance.database;
+    final currentQty =
+        await getAvailableQuantity(truckId, productId, executor: db);
     if (currentQty < qtyToDeduct) {
       return false; // Not enough stock in offline database!
     }

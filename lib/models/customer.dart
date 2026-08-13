@@ -29,18 +29,18 @@ class Customer {
 
   factory Customer.fromJson(Map<String, dynamic> json) {
     return Customer(
-      id: json['id'],
-      customerNo: json['customer_no'],
-      name: json['name'],
-      email: json['email'] ?? '',
-      tel: json['tel'],
-      address: json['address'] ?? '',
-      district: json['district'] ?? '',
-      province: json['province'] ?? '',
-      postCode: json['post_code'] ?? '',
-      country: json['country'] ?? '',
-      createdAt: json['created_at'] != null ? DateTime.parse(json['created_at']) : null,
-      updatedAt: json['updated_at'] != null ? DateTime.parse(json['updated_at']) : null,
+      id: json['id'] is int ? json['id'] : (int.tryParse(json['id']?.toString() ?? '0') ?? 0),
+      customerNo: json['customer_no']?.toString() ?? '-',
+      name: json['name']?.toString() ?? 'ไม่มีชื่อ',
+      email: json['email']?.toString() ?? '',
+      tel: json['tel']?.toString() ?? '-',
+      address: json['address']?.toString() ?? '',
+      district: json['district']?.toString() ?? '',
+      province: json['province']?.toString() ?? '',
+      postCode: json['post_code']?.toString() ?? json['postCode']?.toString() ?? '',
+      country: json['country']?.toString() ?? 'TH',
+      createdAt: json['created_at'] != null ? DateTime.tryParse(json['created_at'].toString()) : null,
+      updatedAt: json['updated_at'] != null ? DateTime.tryParse(json['updated_at'].toString()) : null,
     );
   }
 
