@@ -48,3 +48,7 @@ app.*.map.json
 /android/build/reports/
 
 pubspec.lock
+
+# Local Agent Context
+.agents/
+AGENTS.md
