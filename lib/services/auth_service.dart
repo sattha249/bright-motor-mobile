@@ -7,7 +7,7 @@ import 'package:brightmotor_store/services/session_preferences.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
-import 'package:riverpod/riverpod.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 final authServiceProvider = Provider.autoDispose<AuthService>((ref) {
   return AuthServiceImpl();
@@ -33,7 +33,7 @@ class AuthServiceImpl implements AuthService {
 
   @override
   Future<AuthResponse> login(String username, String password) async {
-    final baseUrl = dotenv.env['API_URL'] ?? 'http://localhost:3333';
+    final baseUrl = dotenv.env['API_URL'] ?? 'http://10.0.2.2:3333';
     final url = '$baseUrl/login';
 
     final response = await http.post(

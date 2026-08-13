@@ -40,18 +40,15 @@ class SyncServiceImpl implements SyncService {
   
   Future<bool> _syncGeneralData() async {
     try {
-      final token = await preferences.getToken();
-      
-      // [TODO] เปลี่ยน Path นี้เป็น API ที่ต้องการยิงจริง เช่น /sync หรือ /health-check
-      final url = '$baseUrl/sell-logs'; 
+      // 1. เช็คสถานะ Server ผ่าน /health-check
+      final url = '$baseUrl/health-check'; 
 
-      final response = await defaultHttpClient().get( // หรือ .get แล้วแต่หลังบ้าน
+      final response = await defaultHttpClient().get(
         Uri.parse(url),
         headers: {
-          'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
-      );
+      ).timeout(const Duration(seconds: 5));
 
       // ถ้า Server ตอบกลับ 200 OK ถือว่าผ่าน
       if (response.statusCode == 200) {

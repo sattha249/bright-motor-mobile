@@ -9,7 +9,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart' show dotenv;
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 final truckServiceProvider = Provider.autoDispose<TruckService>((ref) {
-  final baseUrl = dotenv.env['API_URL'] ?? 'http://localhost:3333';
+  final baseUrl = dotenv.env['API_URL'] ?? 'http://10.0.2.2:3333';
   return TruckService(baseUrl, ref.read(sessionPreferenceProvider));
 });
 
