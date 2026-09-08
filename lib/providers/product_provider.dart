@@ -1,6 +1,7 @@
 import 'package:brightmotor_store/database/daos/user_dao.dart';
 import 'package:brightmotor_store/models/product_model.dart';
 import 'package:brightmotor_store/providers/truck_provider.dart';
+import 'package:brightmotor_store/services/pre_order_service.dart';
 import 'package:brightmotor_store/services/product_service.dart';
 import 'package:brightmotor_store/services/truck_service.dart';
 import 'package:flutter/foundation.dart';
@@ -16,6 +17,7 @@ final productsProvider =
   return ProductNotifier(
     service: ref.watch(productServiceProvider),
     truckService: ref.watch(truckServiceProvider),
+    preOrderService: ref.watch(preOrderServiceProvider),
     truckId: truckId,
   )..reload();
 });
@@ -50,6 +52,7 @@ final productByCategoriesProvider = Provider.autoDispose
 class ProductNotifier extends StateNotifier<List<Product>> {
   final ProductService service;
   final TruckService truckService;
+  final PreOrderService preOrderService;
   final int? truckId;
   final UserDao _userDao = UserDao();
 
@@ -58,6 +61,7 @@ class ProductNotifier extends StateNotifier<List<Product>> {
   ProductNotifier({
     required this.service,
     required this.truckService,
+    required this.preOrderService,
     this.truckId,
   }) : super([]);
 
@@ -70,13 +74,20 @@ class ProductNotifier extends StateNotifier<List<Product>> {
 
     if (activeTruckId != null && activeTruckId > 0) {
       try {
+        final preOrderQuantities = await preOrderService.getPreOrderQuantities(truckId: activeTruckId);
         final response = await truckService.getTruckStocks(activeTruckId, limit: 300);
         
         final data = response.data
             .where((stockItem) => stockItem.product != null) 
             .map((stockItem) {
               final product = stockItem.product!; 
-              return product.copyWith(quantity: stockItem.quantity);
+              final preOrderQty = preOrderQuantities[product.id] ?? 0;
+              final availableQty = (stockItem.quantity ?? 0) - preOrderQty;
+              return product.copyWith(
+                quantity: stockItem.quantity ?? 0,
+                preOrderQuantity: preOrderQty,
+                availableQuantity: availableQty,
+              );
             }).toList();
 
         _originProducts = data;

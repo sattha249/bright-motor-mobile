@@ -65,6 +65,8 @@ class Product {
   final String sellPrice;
   final String unit;
   final int quantity;
+  final int preOrderQuantity;
+  final int availableQuantity;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -78,11 +80,16 @@ class Product {
     required this.sellPrice,
     required this.unit,
     this.quantity = 0,
+    this.preOrderQuantity = 0,
+    this.availableQuantity = 0,
     this.createdAt,
     this.updatedAt,
   });
 
   factory Product.fromJson(Map<String, dynamic> json) {
+    final qty = json['quantity'] as int? ?? 0;
+    final poQty = json['pre_order_quantity'] as int? ?? 0;
+    final availQty = json['available_quantity'] as int? ?? (qty - poQty);
     return Product(
       id: json['id'] as int? ?? 0,
       category: json['category'] as String? ?? '',
@@ -92,7 +99,9 @@ class Product {
       costPrice: json['cost_price'] as String? ?? '0',
       sellPrice: json['sell_price'] as String? ?? '0',
       unit: json['unit'] as String? ?? '',
-      quantity: json['quantity'] as int? ?? 0,
+      quantity: qty,
+      preOrderQuantity: poQty,
+      availableQuantity: availQty,
       createdAt: json['created_at'] != null ? DateTime.parse(json['created_at']) : null,
       updatedAt: json['updated_at'] != null ? DateTime.parse(json['updated_at']) : null,
     );
@@ -110,12 +119,18 @@ class Product {
       'sell_price': sellPrice,
       'unit': unit,
       'quantity': quantity,
+      'pre_order_quantity': preOrderQuantity,
+      'available_quantity': availableQuantity,
       'created_at': createdAt?.toIso8601String(),
       'updated_at': updatedAt?.toIso8601String(),
     };
   }
 
-  Product copyWith({int? quantity}) {
+  Product copyWith({
+    int? quantity,
+    int? preOrderQuantity,
+    int? availableQuantity,
+  }) {
     return Product(
       id: id,
       category: category,
@@ -126,6 +141,8 @@ class Product {
       sellPrice: sellPrice,
       unit: unit,
       quantity: quantity ?? this.quantity,
+      preOrderQuantity: preOrderQuantity ?? this.preOrderQuantity,
+      availableQuantity: availableQuantity ?? this.availableQuantity,
       createdAt: createdAt,
       updatedAt: updatedAt,
     );

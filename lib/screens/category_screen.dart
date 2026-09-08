@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:brightmotor_store/components/product_tile.dart';
 import 'package:brightmotor_store/models/cart_model.dart';
 import 'package:brightmotor_store/models/customer.dart';
@@ -84,37 +83,20 @@ class CategoryScreen extends HookConsumerWidget {
               itemBuilder: (context, index) {
                 final product = products[index];
 
-                // Logic เดิม: หาจำนวนที่เหลือ (Stock - Cart)
                 final existingCartItem = cartItems.firstWhere(
                   (item) => item.product.id == product.id,
                   orElse: () => CartItem(product: product, quantity: 0),
                 );
                 final countInCart = existingCartItem.quantity;
-                final remainingQty = product.quantity - countInCart;
+                final maxAddable = product.availableQuantity - countInCart;
+                final remainingQty = maxAddable > 0 ? maxAddable : 0;
                 
-                // สินค้าที่จะแสดงผล (ปรับ quantity ตามที่เหลือจริง)
                 final displayProduct = product.copyWith(quantity: remainingQty);
 
                 return ProductTile(
                   product: displayProduct,
                   onAction: (_) {
-                    if (remainingQty > 0) {
-                      // [แก้ไข] เรียก Dialog แทนการ add ทันที
-                      _showQuantityDialog(context, ref, product, remainingQty);
-                    } else {
-                      // แจ้งเตือนสินค้าหมด
-                      ScaffoldMessenger.of(context).clearSnackBars();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            'สินค้าหมด! (สต็อก: ${product.quantity} ${product.unit})',
-                            style: const TextStyle(color: Colors.white),
-                          ),
-                          backgroundColor: Colors.red,
-                          duration: const Duration(milliseconds: 1000),
-                        ),
-                      );
-                    }
+                    _showQuantityDialog(context, ref, product, remainingQty, countInCart: countInCart);
                   },
                 );
               },
@@ -171,94 +153,155 @@ class CategoryScreen extends HookConsumerWidget {
     );
   }
 
-  // [เพิ่ม] ฟังก์ชันแสดง Dialog ใส่จำนวน
+  // [แก้ไข] ฟังก์ชันแสดง Dialog ใส่จำนวน พร้อมรายละเอียดสต็อกในรถ, Preorder และยอดขายได้
   void _showQuantityDialog(
-      BuildContext context, WidgetRef ref, Product product, int maxQty) {
-    
-    // ใช้ StatefulBuilder เพื่อให้ Dialog สามารถ update UI (ตัวเลข) ภายในตัวเองได้
+      BuildContext context, WidgetRef ref, Product product, int maxQty,
+      {int countInCart = 0}) {
     showDialog(
       context: context,
       builder: (context) {
-        // ตัวแปรเก็บจำนวนที่เลือก เริ่มต้นที่ 1
-        int currentQty = 1;
-        // Controller สำหรับ TextField
-        final TextEditingController controller = TextEditingController(text: '1');
+        int currentQty = maxQty > 0 ? 1 : 0;
+        final TextEditingController controller =
+            TextEditingController(text: currentQty.toString());
 
         return StatefulBuilder(
           builder: (context, setState) {
-            
-            // ฟังก์ชันอัพเดทค่า
             void updateQty(int newQty) {
-              if (newQty < 0) newQty = 0;
-              if (newQty > maxQty) newQty = maxQty;
-              
+              if (newQty < (maxQty > 0 ? 1 : 0)) {
+                newQty = maxQty > 0 ? 1 : 0;
+              }
+              if (newQty > maxQty) {
+                newQty = maxQty;
+              }
+
               setState(() {
                 currentQty = newQty;
                 controller.text = newQty.toString();
-                // ย้าย cursor ไปท้ายสุดเวลากดปุ่ม
                 controller.selection = TextSelection.fromPosition(
                     TextPosition(offset: controller.text.length));
               });
             }
 
+            final isNegativeAvailable = product.availableQuantity < 0;
+            final availableColor = isNegativeAvailable ? Colors.red : Colors.green;
+
             return AlertDialog(
-              title: Text(product.description), // แสดงชื่อสินค้า
+              title: Text(
+                product.description,
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text("คงเหลือในสต็อกที่เพิ่มได้: $maxQty ${product.unit}", 
-                      style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                  Text(
+                    "สต็อกในรถ: ${product.quantity} ${product.unit}",
+                    style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 4,
+                    children: [
+                      // Badge สีน้ำเงิน: Preorder
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.blue.shade300),
+                        ),
+                        child: Text(
+                          "Preorder: ${product.preOrderQuantity}",
+                          style: TextStyle(
+                            color: Colors.blue.shade700,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      // Badge สีเขียว/แดง: ขายได้
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: isNegativeAvailable ? Colors.red.shade50 : Colors.green.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isNegativeAvailable ? Colors.red.shade300 : Colors.green.shade300,
+                          ),
+                        ),
+                        child: Text(
+                          "ขายได้: ${product.availableQuantity}",
+                          style: TextStyle(
+                            color: availableColor.shade700,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  if (countInCart > 0)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Text(
+                        "อยู่ในตะกร้าแล้ว: $countInCart ${product.unit}",
+                        style: TextStyle(fontSize: 12, color: Colors.orange.shade800),
+                      ),
+                    ),
+                  Text(
+                    maxQty > 0
+                        ? "สามารถเพิ่มได้: $maxQty ${product.unit}"
+                        : "ไม่สามารถเพิ่มได้ (สินค้าที่ขายได้ไม่เพียงพอ)",
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: maxQty > 0 ? Colors.grey.shade700 : Colors.red,
+                    ),
+                  ),
                   const SizedBox(height: 16),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // ปุ่มลบ (-)
                       IconButton(
-                        onPressed: currentQty > 0 
-                            ? () => updateQty(currentQty - 1) 
-                            : null, // disable ถ้าเป็น 0
+                        onPressed: (maxQty > 0 && currentQty > 1)
+                            ? () => updateQty(currentQty - 1)
+                            : null,
                         icon: const Icon(Icons.remove_circle_outline),
                         color: Colors.red,
                         iconSize: 32,
                       ),
-                      
-                      // ช่องกรอกตัวเลข
                       SizedBox(
                         width: 80,
                         child: TextField(
                           controller: controller,
                           keyboardType: TextInputType.number,
                           textAlign: TextAlign.center,
-                          inputFormatters: [
-                            FilteringTextInputFormatter.digitsOnly
-                          ],
+                          enabled: maxQty > 0,
+                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                           decoration: const InputDecoration(
                             border: OutlineInputBorder(),
                             contentPadding: EdgeInsets.symmetric(vertical: 8),
                           ),
                           onChanged: (value) {
-                            // Logic เมื่อพิมพ์เอง
                             int? val = int.tryParse(value);
                             if (val != null) {
-                              // ถ้าพิมพ์เกิน max ให้ปัดลงมาเท่า max ทันที (หรือจะรอตอนกดตกลงก็ได้)
                               if (val > maxQty) {
                                 updateQty(maxQty);
                               } else {
                                 setState(() => currentQty = val);
                               }
                             } else {
-                               // กรณีลบจนว่าง ให้ถือเป็น 0
-                               setState(() => currentQty = 0);
+                              setState(() => currentQty = 0);
                             }
                           },
                         ),
                       ),
-                      
-                      // ปุ่มบวก (+)
                       IconButton(
-                        onPressed: currentQty < maxQty 
-                            ? () => updateQty(currentQty + 1) 
-                            : null, // disable ถ้าเต็ม max
+                        onPressed: currentQty < maxQty
+                            ? () => updateQty(currentQty + 1)
+                            : null,
                         icon: const Icon(Icons.add_circle_outline),
                         color: Colors.green,
                         iconSize: 32,
@@ -273,29 +316,23 @@ class CategoryScreen extends HookConsumerWidget {
                   child: const Text('ยกเลิก', style: TextStyle(color: Colors.grey)),
                 ),
                 ElevatedButton(
-                  onPressed: currentQty > 0 // กดได้ต่อเมื่อจำนวน > 0
+                  onPressed: (currentQty > 0 && currentQty <= maxQty)
                       ? () {
-                          // [สำคัญ] เพิ่มสินค้าเข้าตะกร้าตามจำนวนที่ระบุ
                           final notifier = ref.read(cartProvider.notifier);
-                          
-                          // เนื่องจาก addItem เดิมอาจจะรับทีละ 1 
-                          // เราสามารถ loop เรียก หรือ ถ้าใน cartNotifier มีฟังก์ชันรับ quantity ก็ใช้ตัวนั้น
-                          // สมมติว่า addItem รับได้แค่ทีละ 1 (Safe approach)
-                          for (int i = 0; i < currentQty; i++) {
-                             notifier.addItem(product);
-                          }
-                          
-                          // หรือถ้า CartNotifier ของคุณมี method: addItem(product, quantity: n) 
-                          // ให้ใช้แบบนี้จะดีกว่า (ประสิทธิภาพดีกว่า):
-                          // notifier.addItem(product, quantity: currentQty);
+                          notifier.addItem(product, quantity: currentQty);
 
                           Navigator.of(context).pop();
-                          
+
+                          ScaffoldMessenger.of(context).hideCurrentSnackBar();
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('เพิ่ม $currentQty รายการเรียบร้อย')),
+                            SnackBar(
+                              content: Text('เพิ่ม $currentQty ${product.unit} เรียบร้อย'),
+                              backgroundColor: Colors.green,
+                              duration: const Duration(seconds: 1),
+                            ),
                           );
                         }
-                      : null, // disable ปุ่มตกลงถ้าจำนวนเป็น 0
+                      : null,
                   child: const Text('ตกลง'),
                 ),
               ],
