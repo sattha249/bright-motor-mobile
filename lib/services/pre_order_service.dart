@@ -17,6 +17,7 @@ abstract class PreOrderService {
   Future<void> confirmPreOrder(int id);
   Future<Map<String, dynamic>> getPreOrderRaw(int id);
   Future<void> cancelPreOrder(int preOrderId);
+  Future<Map<int, int>> getPreOrderQuantities({required int truckId});
 }
 
 class PreOrderServiceImpl implements PreOrderService {
@@ -158,5 +159,71 @@ class PreOrderServiceImpl implements PreOrderService {
     if (response.statusCode != 200) {
       throw Exception('Failed to cancel pre-order: ${response.body}');
     }
+  }
+
+  @override
+  Future<Map<int, int>> getPreOrderQuantities({required int truckId}) async {
+    final Map<int, int> quantities = {};
+    try {
+      final token = await preferences.getToken();
+      final url = '$baseUrl/pre-orders?truckId=$truckId&status=Pending&limit=1000';
+
+      final response = await defaultHttpClient().get(
+        Uri.parse(url),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      ).timeout(const Duration(seconds: 4));
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final List orders = data['data'] ?? [];
+
+        final detailFutures = orders.map((o) async {
+          try {
+            final id = o['id'];
+            if (id != null) {
+              return await getPreOrderDetail(id);
+            }
+          } catch (e) {
+            debugPrint('Error loading detail for pre-order: $e');
+          }
+          return null;
+        });
+
+        final detailResults = await Future.wait(detailFutures);
+        for (final po in detailResults) {
+          if (po != null) {
+            for (final item in po.items) {
+              if (item.productId > 0) {
+                quantities[item.productId] = (quantities[item.productId] ?? 0) + item.quantity;
+              }
+            }
+          }
+        }
+        return quantities;
+      }
+    } catch (e) {
+      debugPrint('Online getPreOrderQuantities failed, fallback to SQLite: $e');
+    }
+
+    try {
+      final pendingOrders = await _preOrderDao.getPendingSyncPreOrders();
+      for (final order in pendingOrders) {
+        final items = order['items'] as List? ?? [];
+        for (final item in items) {
+          final pId = item['product_id'] as int? ?? 0;
+          final qty = (item['quantity'] as num?)?.toInt() ?? 0;
+          if (pId > 0) {
+            quantities[pId] = (quantities[pId] ?? 0) + qty;
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Local getPreOrderQuantities failed: $e');
+    }
+
+    return quantities;
   }
 }

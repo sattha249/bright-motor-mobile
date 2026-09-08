@@ -32,6 +32,46 @@ class _TruckStockScreenState extends ConsumerState<TruckStockScreen> {
     });
   }
 
+  Widget _buildPreOrderBadge(int count) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: Colors.blue.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.blue.shade300),
+      ),
+      child: Text(
+        "Preorder: $count",
+        style: TextStyle(
+          color: Colors.blue.shade700,
+          fontSize: 11,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAvailableBadge(int count) {
+    final isNegative = count < 0;
+    final baseColor = isNegative ? Colors.red : Colors.green;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: baseColor.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: baseColor.shade300),
+      ),
+      child: Text(
+        "ขายได้: $count",
+        style: TextStyle(
+          color: baseColor.shade700,
+          fontSize: 11,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final stocks = ref.watch(truckStockProvider);
@@ -66,54 +106,73 @@ class _TruckStockScreenState extends ConsumerState<TruckStockScreen> {
           ? const Center(child: CircularProgressIndicator())
           : stocks.isEmpty
               ? const Center(child: Text("ไม่พบสินค้า"))
-              : ListView.separated(
-                  padding: const EdgeInsets.all(8),
-                  itemCount: stocks.length + (notifier.hasMore ? 1 : 0),
-                  separatorBuilder: (ctx, i) => const Divider(height: 1),
-                  itemBuilder: (context, index) {
-                    // --- ส่วน Loading ท้ายรายการ ---
-                    if (index == stocks.length) {
-                      Future.microtask(() => notifier.fetchNextPage());
-                      return const Center(
-                        child: Padding(
-                          padding: EdgeInsets.all(16),
-                          child: CircularProgressIndicator(),
-                        ),
-                      );
-                    }
+              : RefreshIndicator(
+                  onRefresh: () => notifier.loadInitial(),
+                  child: ListView.separated(
+                    padding: const EdgeInsets.all(8),
+                    itemCount: stocks.length + (notifier.hasMore ? 1 : 0),
+                    separatorBuilder: (ctx, i) => const Divider(height: 1),
+                    itemBuilder: (context, index) {
+                      // --- ส่วน Loading ท้ายรายการ ---
+                      if (index == stocks.length) {
+                        Future.microtask(() => notifier.fetchNextPage());
+                        return const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(16),
+                            child: CircularProgressIndicator(),
+                          ),
+                        );
+                      }
 
-                    // --- รายการสินค้า ---
-                    final item = stocks[index];
-                    return ListTile(
-                      // [ปรับปรุง 1] เปลี่ยนไอคอนด้านหน้าเป็นรูปกล่อง (เพราะเอาตัวเลขไปไว้ขวาแล้ว)
-                      leading: CircleAvatar(
-                        backgroundColor: Colors.grey.shade200,
-                        child: const Icon(Icons.inventory_2_outlined, color: Colors.grey),
-                      ),
-                      title: Text(item.product.description),
-                      subtitle: Text(
-                        "รหัส: ${item.product.productCode} | ราคา: ฿${item.product.sellPrice}",
-                        style: TextStyle(color: Colors.grey[600]),
-                      ),
-                      // [ปรับปรุง 2] โชว์ Quantity คู่กับ Unit ในกรอบสีฟ้า
-                      trailing: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: Colors.blue.shade50,
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: Colors.blue.shade100),
+                      // --- รายการสินค้า ---
+                      final item = stocks[index];
+                      return ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: Colors.grey.shade200,
+                          child: const Icon(Icons.inventory_2_outlined, color: Colors.grey),
                         ),
-                        child: Text(
-                          "${item.quantity} ${item.product.unit}", // <--- แสดงผลตรงนี้ครับ
-                          style: const TextStyle(
-                            color: Colors.blue,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
+                        title: Text(
+                          item.product.description,
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 2),
+                            Text(
+                              "รหัส: ${item.product.productCode} | ราคา: ฿${item.product.sellPrice}",
+                              style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                            ),
+                            const SizedBox(height: 6),
+                            Wrap(
+                              spacing: 6,
+                              runSpacing: 4,
+                              children: [
+                                _buildPreOrderBadge(item.preOrderQuantity),
+                                _buildAvailableBadge(item.availableQuantity),
+                              ],
+                            ),
+                          ],
+                        ),
+                        trailing: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: Colors.grey.shade300),
+                          ),
+                          child: Text(
+                            "${item.quantity} ${item.product.unit}",
+                            style: const TextStyle(
+                              color: Colors.black87,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                            ),
                           ),
                         ),
-                      ),
-                    );
-                  },
+                      );
+                    },
+                  ),
                 ),
     );
   }

@@ -52,6 +52,7 @@ class POCustomer {
 // Model ย่อยสำหรับรายการสินค้าในใบสั่งซื้อ (เผื่อไว้สำหรับหน้า Detail)
 class PreOrderItem {
   final int id;
+  final int productId;
   final int quantity;
   final String price;
   final String total;
@@ -59,6 +60,7 @@ class PreOrderItem {
 
   PreOrderItem({
     required this.id,
+    this.productId = 0,
     required this.quantity,
     required this.price,
     required this.total,
@@ -68,11 +70,13 @@ class PreOrderItem {
   factory PreOrderItem.fromJson(Map<String, dynamic> json) {
     // ปรับแก้ตามโครงสร้างจริงของ Detail API (สมมติว่า product อยู่ใน object 'product')
     final product = json['product'] ?? {};
+    final pId = json['product_id'] ?? json['productId'] ?? product['id'] ?? 0;
     return PreOrderItem(
       id: json['id'] ?? 0,
+      productId: pId is int ? pId : int.tryParse(pId.toString()) ?? 0,
       quantity: json['quantity'] ?? 0,
-      price: json['sold_price'] ?? '0.00',
-      total: json['total_price'] ?? '0.00', // หรือคำนวณเอง
+      price: (json['sold_price'] ?? json['price'] ?? '0.00').toString(),
+      total: (json['total_price'] ?? json['total'] ?? '0.00').toString(), // หรือคำนวณเอง
       productName: product['description'] ?? 'สินค้า',
     );
   }
