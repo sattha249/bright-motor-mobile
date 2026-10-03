@@ -12,7 +12,8 @@ final preOrderServiceProvider = Provider.autoDispose<PreOrderService>((ref) {
 });
 
 abstract class PreOrderService {
-  Future<Map<String, dynamic>> getPreOrders({required int truckId, int page = 1});
+  Future<Map<String, dynamic>> getPreOrders(
+      {required int truckId, int page = 1});
   Future<PreOrder> getPreOrderDetail(int id);
   Future<void> confirmPreOrder(int id);
   Future<Map<String, dynamic>> getPreOrderRaw(int id);
@@ -27,7 +28,8 @@ class PreOrderServiceImpl implements PreOrderService {
   String get baseUrl => dotenv.env['API_URL'] ?? 'http://10.0.2.2:3333';
 
   @override
-  Future<Map<String, dynamic>> getPreOrders({required int truckId, int page = 1}) async {
+  Future<Map<String, dynamic>> getPreOrders(
+      {required int truckId, int page = 1}) async {
     try {
       final token = await preferences.getToken();
       final url = '$baseUrl/pre-orders?truckId=$truckId&page=$page&per_page=10';
@@ -42,9 +44,8 @@ class PreOrderServiceImpl implements PreOrderService {
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        final List<PreOrder> list = (data['data'] as List)
-            .map((e) => PreOrder.fromJson(e))
-            .toList();
+        final List<PreOrder> list =
+            (data['data'] as List).map((e) => PreOrder.fromJson(e)).toList();
 
         // Also cache server preorders into SQLite
         await _preOrderDao.upsertServerPreOrdersBatch(list);
@@ -65,9 +66,12 @@ class PreOrderServiceImpl implements PreOrderService {
         id: map['id'] ?? map['local_id'],
         billNo: map['bill_no'] ?? '-',
         status: map['status'] ?? 'Pending',
-        totalSoldPrice: (map['total_sold_price'] as num?)?.toStringAsFixed(2) ?? '0.00',
+        totalSoldPrice:
+            (map['total_sold_price'] as num?)?.toStringAsFixed(2) ?? '0.00',
         isCredit: map['is_credit'] ?? 'cash',
-        createdAt: map['created_at'] != null ? DateTime.tryParse(map['created_at']) : DateTime.now(),
+        createdAt: map['created_at'] != null
+            ? DateTime.tryParse(map['created_at'])
+            : DateTime.now(),
         customer: POCustomer(name: 'ลูกค้า (ออฟไลน์)', tel: '-'),
       );
     }).toList();
@@ -111,7 +115,7 @@ class PreOrderServiceImpl implements PreOrderService {
     final token = await preferences.getToken();
     final url = '$baseUrl/pre-orders/$id/confirm';
 
-    final response = await defaultHttpClient().put(
+    final response = await defaultHttpClient().post(
       Uri.parse(url),
       headers: {
         'Authorization': 'Bearer $token',
@@ -148,7 +152,7 @@ class PreOrderServiceImpl implements PreOrderService {
     final token = await preferences.getToken();
     final url = '$baseUrl/pre-orders/$preOrderId/cancel';
 
-    final response = await defaultHttpClient().put(
+    final response = await defaultHttpClient().post(
       Uri.parse(url),
       headers: {
         'Authorization': 'Bearer $token',
@@ -166,7 +170,8 @@ class PreOrderServiceImpl implements PreOrderService {
     final Map<int, int> quantities = {};
     try {
       final token = await preferences.getToken();
-      final url = '$baseUrl/pre-orders?truckId=$truckId&status=Pending&limit=1000';
+      final url =
+          '$baseUrl/pre-orders?truckId=$truckId&status=Pending&limit=1000';
 
       final response = await defaultHttpClient().get(
         Uri.parse(url),
@@ -197,7 +202,8 @@ class PreOrderServiceImpl implements PreOrderService {
           if (po != null) {
             for (final item in po.items) {
               if (item.productId > 0) {
-                quantities[item.productId] = (quantities[item.productId] ?? 0) + item.quantity;
+                quantities[item.productId] =
+                    (quantities[item.productId] ?? 0) + item.quantity;
               }
             }
           }

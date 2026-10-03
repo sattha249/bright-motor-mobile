@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'sale_contract.dart';
+import 'sale_receipt.dart';
 import 'dart:io';
 import 'package:brightmotor_store/database/daos/customer_dao.dart';
 import 'package:brightmotor_store/database/daos/pre_order_dao.dart';
@@ -29,7 +31,11 @@ class SyncServiceImpl implements SyncService {
   final CustomerDao _customerDao = CustomerDao();
   final TruckStockDao _truckStockDao = TruckStockDao();
   final PreOrderDao _preOrderDao = PreOrderDao();
-  final SellLogDao _sellLogDao = SellLogDao();
+  final SellLogDao _sellLogDao;
+  final http.Client _client;
+  SyncServiceImpl({SellLogDao? sellLogDao, http.Client? client})
+      : _sellLogDao = sellLogDao ?? SellLogDao(),
+        _client = client ?? defaultHttpClient();
   final UserDao _userDao = UserDao();
 
   String get baseUrl => dotenv.env['API_URL'] ?? 'http://10.0.2.2:3333';
@@ -79,62 +85,76 @@ class SyncServiceImpl implements SyncService {
 
   Future<void> pushPendingOfflineTransactions(String token) async {
     try {
+      await SaleContract.ensure(baseUrl, _client);
       final pendingSales = await _sellLogDao.getPendingSyncSales();
       for (final sale in pendingSales) {
         final localId = sale['local_id'] as int;
         final uuid = sale['uuid'] as String? ?? '';
 
         final items = (sale['items'] as List?) ?? [];
-        final itemsJson = items.map((item) => {
-          "productId": item['product_id'],
-          "quantity": item['quantity'],
-          "price": item['price'],
-          "discount": (item['discount'] as num?)?.toStringAsFixed(2) ?? '0.00',
-          "sold_price": (item['sold_price'] as num?)?.toStringAsFixed(2) ?? '0.00',
-          "is_paid": item['is_paid'] == 1,
-        }).toList();
+        final itemsJson = items
+            .map((item) => {
+                  "productId": item['product_id'],
+                  "quantity": item['quantity'],
+                  "price": item['price'],
+                  "discount":
+                      (item['discount'] as num?)?.toStringAsFixed(2) ?? '0.00',
+                  "sold_price":
+                      (item['sold_price'] as num?)?.toStringAsFixed(2) ??
+                          '0.00',
+                  "is_paid": item['is_paid'] == 1,
+                })
+            .toList();
 
         final body = {
           "uuid": uuid,
+          "billNo": sale['bill_no'],
           "truckId": sale['truck_id'],
           "customerId": sale['customer_id'],
           "isCredit": sale['is_credit'] == 'cash' ? null : sale['is_credit'],
-          "totalDiscount": (sale['total_discount'] as num?)?.toStringAsFixed(2) ?? '0.00',
-          "totalSoldPrice": (sale['total_sold_price'] as num?)?.toStringAsFixed(2) ?? '0.00',
+          "totalDiscount":
+              (sale['total_discount'] as num?)?.toStringAsFixed(2) ?? '0.00',
+          "totalSoldPrice":
+              (sale['total_sold_price'] as num?)?.toStringAsFixed(2) ?? '0.00',
           "items": itemsJson
         };
 
-        final response = await defaultHttpClient().post(
-          Uri.parse('$baseUrl/sell-logs'),
-          headers: {
-            'Authorization': 'Bearer $token',
-            'Content-Type': 'application/json',
-            'X-Idempotency-Key': uuid,
-          },
-          body: jsonEncode(body),
-        ).timeout(const Duration(seconds: 5));
+        final response = await _client
+            .post(
+              Uri.parse('$baseUrl/sell-logs'),
+              headers: {
+                'Authorization': 'Bearer $token',
+                'Content-Type': 'application/json',
+                'X-Idempotency-Key': uuid,
+              },
+              body: jsonEncode(body),
+            )
+            .timeout(const Duration(seconds: 5));
 
         if (response.statusCode == 200 || response.statusCode == 201) {
-          final responseData = jsonDecode(response.body);
-          final serverId = responseData['id'] ?? responseData['data']?['id'];
-          if (serverId != null) {
-            await _sellLogDao.markSynced(localId, serverId as int);
-          }
+          final receipt = SaleReceipt.fromJson(jsonDecode(response.body));
+          await _sellLogDao.markSynced(localId, receipt.id, receipt.billNo);
+        } else {
+          throw Exception(
+              'บิล ${sale['bill_no']} ยัง sync ไม่สำเร็จ: ${response.statusCode}');
         }
       }
     } catch (e) {
       debugPrint('Error pushing pending offline transactions: $e');
+      rethrow; // Do not overwrite locally deducted stock while sales are still pending.
     }
   }
 
   Future<bool> _checkServerHealth() async {
     try {
       final url = '$baseUrl/health-check';
-      final response = await defaultHttpClient()
-          .get(Uri.parse(url), headers: {'Content-Type': 'application/json'})
-          .timeout(const Duration(seconds: 4));
+      final response = await _client.get(Uri.parse(url), headers: {
+        'Content-Type': 'application/json'
+      }).timeout(const Duration(seconds: 4));
 
-      return response.statusCode == 200;
+      if (response.statusCode != 200) return false;
+      await SaleContract.remember(baseUrl, jsonDecode(response.body));
+      return true;
     } catch (e) {
       return false;
     }
@@ -176,8 +196,7 @@ class SyncServiceImpl implements SyncService {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final List jsonList = data['data'] ?? [];
-        final items =
-            jsonList.map((j) => TruckStockItem.fromJson(j)).toList();
+        final items = jsonList.map((j) => TruckStockItem.fromJson(j)).toList();
         await _truckStockDao.saveTruckStocksBatch(truckId, items);
       }
     } catch (e) {

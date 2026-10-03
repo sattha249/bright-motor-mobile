@@ -15,7 +15,8 @@ class PreOrderDetailDialog extends ConsumerStatefulWidget {
   const PreOrderDetailDialog({super.key, required this.preOrderId});
 
   @override
-  ConsumerState<PreOrderDetailDialog> createState() => _PreOrderDetailDialogState();
+  ConsumerState<PreOrderDetailDialog> createState() =>
+      _PreOrderDetailDialogState();
 }
 
 class _PreOrderDetailDialogState extends ConsumerState<PreOrderDetailDialog> {
@@ -30,11 +31,14 @@ class _PreOrderDetailDialogState extends ConsumerState<PreOrderDetailDialog> {
         children: [
           // --- เลเยอร์ที่ 1: เนื้อหาหน้าต่างเดิม ---
           IgnorePointer(
-            ignoring: isProcessing, // ✅ 2. ตัดการรับสัมผัสทั้งหมด หากกำลังโหลด (ป้องกันกดเบิ้ล 100%)
+            ignoring:
+                isProcessing, // ✅ 2. ตัดการรับสัมผัสทั้งหมด หากกำลังโหลด (ป้องกันกดเบิ้ล 100%)
             child: Container(
               constraints: const BoxConstraints(maxHeight: 600),
               child: FutureBuilder<PreOrder>(
-                future: ref.read(preOrderServiceProvider).getPreOrderDetail(widget.preOrderId),
+                future: ref
+                    .read(preOrderServiceProvider)
+                    .getPreOrderDetail(widget.preOrderId),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const SizedBox(
@@ -49,11 +53,14 @@ class _PreOrderDetailDialogState extends ConsumerState<PreOrderDetailDialog> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.error_outline, color: Colors.red, size: 48),
+                          const Icon(Icons.error_outline,
+                              color: Colors.red, size: 48),
                           const SizedBox(height: 16),
                           Text("Error: ${snapshot.error}"),
                           const SizedBox(height: 16),
-                          TextButton(onPressed: () => Navigator.pop(context), child: const Text("ปิด"))
+                          TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: const Text("ปิด"))
                         ],
                       ),
                     );
@@ -72,8 +79,11 @@ class _PreOrderDetailDialogState extends ConsumerState<PreOrderDetailDialog> {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text("รายละเอียดคำสั่งซื้อ", style: Theme.of(context).textTheme.titleLarge),
-                            IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
+                            Text("รายละเอียดคำสั่งซื้อ",
+                                style: Theme.of(context).textTheme.titleLarge),
+                            IconButton(
+                                icon: const Icon(Icons.close),
+                                onPressed: () => Navigator.pop(context)),
                           ],
                         ),
                       ),
@@ -86,58 +96,66 @@ class _PreOrderDetailDialogState extends ConsumerState<PreOrderDetailDialog> {
                           shrinkWrap: true,
                           children: [
                             _buildInfoRow("เลขที่บิล", order.billNo),
-                            _buildInfoRow("ลูกค้า", _safeGetCustomerName(order)),
+                            _buildInfoRow(
+                                "ลูกค้า", _safeGetCustomerName(order)),
                             _buildInfoRow("สถานะ", order.status),
                             _buildInfoRow("ยอดรวม", "฿${order.totalSoldPrice}"),
-                            
                             const SizedBox(height: 16),
-                            const Text("รายการสินค้า:", style: TextStyle(fontWeight: FontWeight.bold)),
+                            const Text("รายการสินค้า:",
+                                style: TextStyle(fontWeight: FontWeight.bold)),
                             const SizedBox(height: 8),
-                            
                             if (order.items.isEmpty)
-                              const Text("- ไม่พบรายการสินค้า -", style: TextStyle(color: Colors.grey)),
-                            
-                           ...order.items.map((item) => Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 6),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  // 1. ชื่อสินค้า และ ราคาต่อหน่วย
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          item.productName, // ✅ เรียกจาก Model ได้เลย
-                                          maxLines: 2, 
-                                          overflow: TextOverflow.ellipsis
+                              const Text("- ไม่พบรายการสินค้า -",
+                                  style: TextStyle(color: Colors.grey)),
+                            ...order.items.map((item) => Padding(
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 6),
+                                  child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      // 1. ชื่อสินค้า และ ราคาต่อหน่วย
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                                item
+                                                    .productName, // ✅ เรียกจาก Model ได้เลย
+                                                maxLines: 2,
+                                                overflow:
+                                                    TextOverflow.ellipsis),
+                                            const SizedBox(height: 2),
+                                            // ราคาต่อหน่วย
+                                            Text(
+                                              "ราคา/หน่วย: ฿${_getUnitPrice(item)}",
+                                              style: const TextStyle(
+                                                  fontSize: 12,
+                                                  color: Colors.grey),
+                                            ),
+                                          ],
                                         ),
-                                        const SizedBox(height: 2),
-                                        // ราคาต่อหน่วย
-                                        Text(
-                                          "ราคา/หน่วย: ฿${_getUnitPrice(item)}",
-                                          style: const TextStyle(fontSize: 12, color: Colors.grey),
-                                        ),
-                                      ],
-                                    ),
+                                      ),
+                                      // 2. จำนวน
+                                      SizedBox(
+                                          width: 40,
+                                          child: Text("x${item.quantity}",
+                                              textAlign: TextAlign
+                                                  .right) // ✅ เรียกจาก Model
+                                          ),
+                                      // 3. ราคารวม (ราคาต่อหน่วย x จำนวน)
+                                      SizedBox(
+                                          width: 85,
+                                          child: Text(
+                                              "฿${_getTotalPrice(item)}",
+                                              textAlign: TextAlign.right,
+                                              style: const TextStyle(
+                                                  fontWeight: FontWeight.w500,
+                                                  color: Colors.blue))),
+                                    ],
                                   ),
-                                  // 2. จำนวน
-                                  SizedBox(
-                                    width: 40,
-                                    child: Text("x${item.quantity}", textAlign: TextAlign.right) // ✅ เรียกจาก Model
-                                  ),
-                                  // 3. ราคารวม (ราคาต่อหน่วย x จำนวน)
-                                  SizedBox(
-                                    width: 85,
-                                    child: Text(
-                                      "฿${_getTotalPrice(item)}", 
-                                      textAlign: TextAlign.right,
-                                      style: const TextStyle(fontWeight: FontWeight.w500, color: Colors.blue)
-                                    )
-                                  ),
-                                ],
-                              ),
-                            )),
+                                )),
                           ],
                         ),
                       ),
@@ -155,10 +173,14 @@ class _PreOrderDetailDialogState extends ConsumerState<PreOrderDetailDialog> {
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: Colors.green,
                                     foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 12),
                                   ),
-                                  onPressed: isProcessing ? null : () => _handleConfirm(context, order.id, ref),
-                                  // ✅ เอา Spinner จิ๋วในปุ่มออก เพราะมีอันใหญ่บังจอแล้ว 
+                                  onPressed: isProcessing
+                                      ? null
+                                      : () => _handleConfirm(
+                                          context, order.id, ref),
+                                  // ✅ เอา Spinner จิ๋วในปุ่มออก เพราะมีอันใหญ่บังจอแล้ว
                                   child: const Text("ยืนยันรายการ (ส่งของ)"),
                                 ),
                               ),
@@ -171,21 +193,27 @@ class _PreOrderDetailDialogState extends ConsumerState<PreOrderDetailDialog> {
                                 if (canConfirm) ...[
                                   Expanded(
                                     child: OutlinedButton.icon(
-                                      icon: const Icon(Icons.delete_forever, size: 18),
+                                      icon: const Icon(Icons.delete_forever,
+                                          size: 18),
                                       label: const Text("ยกเลิก"),
                                       style: OutlinedButton.styleFrom(
                                         foregroundColor: Colors.red,
-                                        side: const BorderSide(color: Colors.red),
+                                        side:
+                                            const BorderSide(color: Colors.red),
                                       ),
-                                      onPressed: isProcessing ? null : () => _showCancelConfirmation(context, order.id, ref),
+                                      onPressed: isProcessing
+                                          ? null
+                                          : () => _showCancelConfirmation(
+                                              context, order.id, ref),
                                     ),
                                   ),
                                   const SizedBox(width: 12),
                                 ],
-                                
                                 Expanded(
                                   child: OutlinedButton(
-                                    onPressed: isProcessing ? null : () => Navigator.pop(context),
+                                    onPressed: isProcessing
+                                        ? null
+                                        : () => Navigator.pop(context),
                                     child: const Text("ปิดหน้าต่าง"),
                                   ),
                                 ),
@@ -206,7 +234,8 @@ class _PreOrderDetailDialogState extends ConsumerState<PreOrderDetailDialog> {
             Positioned.fill(
               child: Container(
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.75), // ทำพื้นหลังให้เป็นสีขาวจางๆ
+                  color: Colors.white
+                      .withOpacity(0.75), // ทำพื้นหลังให้เป็นสีขาวจางๆ
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: const Center(
@@ -217,7 +246,10 @@ class _PreOrderDetailDialogState extends ConsumerState<PreOrderDetailDialog> {
                       SizedBox(height: 16),
                       Text(
                         "กำลังบันทึกข้อมูล...",
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blue),
+                        style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue),
                       ),
                     ],
                   ),
@@ -230,7 +262,8 @@ class _PreOrderDetailDialogState extends ConsumerState<PreOrderDetailDialog> {
   }
 
   // --- [เพิ่ม] Dialog ยืนยันการยกเลิก ---
-  void _showCancelConfirmation(BuildContext context, int preOrderId, WidgetRef ref) {
+  void _showCancelConfirmation(
+      BuildContext context, int preOrderId, WidgetRef ref) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -242,13 +275,16 @@ class _PreOrderDetailDialogState extends ConsumerState<PreOrderDetailDialog> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text("ไม่ยกเลิก", style: TextStyle(color: Colors.grey)),
+            child:
+                const Text("ไม่ยกเลิก", style: TextStyle(color: Colors.grey)),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red, foregroundColor: Colors.white),
             onPressed: () {
               Navigator.pop(ctx); // ปิด Confirm Dialog
-              _handleCancel(context, preOrderId, ref); // เรียกฟังก์ชันยกเลิกจริง
+              _handleCancel(
+                  context, preOrderId, ref); // เรียกฟังก์ชันยกเลิกจริง
             },
             child: const Text("ยืนยันยกเลิก"),
           ),
@@ -258,9 +294,11 @@ class _PreOrderDetailDialogState extends ConsumerState<PreOrderDetailDialog> {
   }
 
   // --- [เพิ่ม] Logic การยกเลิกจริง ---
-  Future<void> _handleCancel(BuildContext context, int preOrderId, WidgetRef ref) async {
+  Future<void> _handleCancel(
+      BuildContext context, int preOrderId, WidgetRef ref) async {
+    if (isProcessing) return;
     setState(() => isProcessing = true);
-  try {
+    try {
       // เรียก API Cancel (ต้องเพิ่ม method นี้ใน PreOrderService ด้วย ถ้ายังไม่มี)
       // สมมติว่า method ชื่อ cancelPreOrder
       await ref.read(preOrderServiceProvider).cancelPreOrder(preOrderId);
@@ -268,7 +306,9 @@ class _PreOrderDetailDialogState extends ConsumerState<PreOrderDetailDialog> {
       if (mounted) {
         Navigator.pop(context); // ปิด Dialog รายละเอียด
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("ยกเลิกใบงานเรียบร้อยแล้ว"), backgroundColor: Colors.orange),
+          const SnackBar(
+              content: Text("ยกเลิกใบงานเรียบร้อยแล้ว"),
+              backgroundColor: Colors.orange),
         );
         // Refresh List หน้าหลัก
         ref.invalidate(preOrderProvider);
@@ -276,7 +316,8 @@ class _PreOrderDetailDialogState extends ConsumerState<PreOrderDetailDialog> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("เกิดข้อผิดพลาด: $e"), backgroundColor: Colors.red),
+          SnackBar(
+              content: Text("เกิดข้อผิดพลาด: $e"), backgroundColor: Colors.red),
         );
       }
     } finally {
@@ -285,87 +326,63 @@ class _PreOrderDetailDialogState extends ConsumerState<PreOrderDetailDialog> {
   }
 
   // --- Logic ยืนยันรายการ (เดิม) ---
-  Future<void> _handleConfirm(BuildContext context, int preOrderId, WidgetRef ref) async {
+  Future<void> _handleConfirm(
+      BuildContext context, int preOrderId, WidgetRef ref) async {
+    if (isProcessing) return;
     setState(() => isProcessing = true);
 
     try {
       // 1. Get Raw Data
-      final rawJson = await ref.read(preOrderServiceProvider).getPreOrderRaw(preOrderId);
+      var rawJson =
+          await ref.read(preOrderServiceProvider).getPreOrderRaw(preOrderId);
 
-      // 2. Transform to Sell Log Payload
-      final sellLogPayload = {
-        "truckId": rawJson['truck_id'],
-        "customerId": rawJson['customer_id'],
-        "isCredit": (rawJson['is_credit'] == null || rawJson['is_credit'] == 'cash') ? 0 : 1,
-        "totalDiscount": rawJson['total_discount'].toString(),
-        "totalSoldPrice": rawJson['total_sold_price'].toString(),
-        "isPreOrder": true,
-        "items": (rawJson['items'] as List).map((item) {
-          return {
-            "productId": item['product_id'],
-            "quantity": item['quantity'],
-            "price": double.tryParse(item['price'].toString()) ?? 0,
-            "discount": item['discount'].toString(),
-            "sold_price": item['sold_price'].toString(),
-            "is_paid": (item['is_paid'] == 1 || item['is_paid'] == true),
-          };
-        }).toList(),
-      };
-
-      // 3. Create Sell Log
-      try {
-        await ref.read(sellServiceProvider).createSellLogFromPreOrder(sellLogPayload);
-      } catch (e) {
-        if (mounted) {
-          await showDialog(
-            context: context,
-            builder: (ctx) => AlertDialog(
-              title: const Text("สร้างรายการขายไม่สำเร็จ"),
-              content: Text(e.toString()),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  child: const Text("ตกลง"),
-                ),
-              ],
-            ),
-          );
-        }
-        return; // Skip confirm
+      // The server creates the sale and completes this preorder atomically.
+      // Its deterministic reference makes retries safe after a lost response.
+      final receipt = await ref
+          .read(sellServiceProvider)
+          .createSellLogFromPreOrder({'preOrderId': preOrderId});
+      if (receipt.data['items'] != null && receipt.data['customer'] != null) {
+        rawJson = receipt.data;
       }
-
-      // 4. Confirm Status
-      await ref.read(preOrderServiceProvider).confirmPreOrder(preOrderId);
 
       // 5. Prepare data for Print (Complete Screen)
       final customerData = rawJson['customer'] ?? {};
 
       final String custAddr = customerData['address'] ?? '-';
-      final String custPhone = customerData['phone'] ?? customerData['tel'] ?? '-';
+      final String custPhone =
+          customerData['phone'] ?? customerData['tel'] ?? '-';
 
       final truckData = rawJson['truck'] ?? {};
       // final userData = truckData['user'] ?? rawJson['user'] ?? {};
       final currentTruck = ref.read(currentTruckProvider);
       final String saleName = currentTruck?.fullName ?? '-';
 
-      final bool isCreditBool = (rawJson['is_credit'] != null && rawJson['is_credit'] != 'cash');
+      final bool isCreditBool =
+          (rawJson['is_credit'] != null && rawJson['is_credit'] != 'cash');
 
-      final List<CartItem> cartItemsForPrint = (rawJson['items'] as List).map((item) {
+      final List<CartItem> cartItemsForPrint =
+          (rawJson['items'] as List).map((item) {
         final productData = item['product'] ?? {};
 
         // 1. ดึงส่วนลด และ ราคาสุทธิ จาก API (รองรับทั้ง snake_case และ camelCase)
-        final discountFromApi = double.tryParse(item['discount']?.toString() ?? '') ?? 
-                               double.tryParse(item['discountValue']?.toString() ?? '') ?? 0.0;
-        final soldPriceFromApi = double.tryParse(item['sold_price']?.toString() ?? '') ?? 
-                                double.tryParse(item['soldPrice']?.toString() ?? '') ?? 0.0;
-        final priceFromApi = double.tryParse(item['price']?.toString() ?? '') ?? 0.0;
-        
+        final discountFromApi =
+            double.tryParse(item['discount']?.toString() ?? '') ??
+                double.tryParse(item['discountValue']?.toString() ?? '') ??
+                0.0;
+        final soldPriceFromApi =
+            double.tryParse(item['sold_price']?.toString() ?? '') ??
+                double.tryParse(item['soldPrice']?.toString() ?? '') ??
+                0.0;
+        final priceFromApi =
+            double.tryParse(item['price']?.toString() ?? '') ?? 0.0;
+
         // 2. ป้องกัน Bug การลดราคาสองเด้ง (Double Discount)
         // โดยปกติ 'price' คือราคาเต็ม และ 'sold_price' คือราคาหลังลด
         // แต่กรณีที่ 'price' ถูกบันทึกเป็นราคาที่ลดแล้ว (price == sold_price) เราจะกู้ราคาเต็มกลับมา
         double finalSellPrice = priceFromApi;
         if (soldPriceFromApi > 0 && discountFromApi > 0) {
-          if (priceFromApi <= 0 || (priceFromApi - soldPriceFromApi).abs() < 0.01) {
+          if (priceFromApi <= 0 ||
+              (priceFromApi - soldPriceFromApi).abs() < 0.01) {
             finalSellPrice = soldPriceFromApi + discountFromApi;
           } else {
             finalSellPrice = priceFromApi;
@@ -373,53 +390,54 @@ class _PreOrderDetailDialogState extends ConsumerState<PreOrderDetailDialog> {
         } else if (soldPriceFromApi > 0) {
           finalSellPrice = priceFromApi > 0 ? priceFromApi : soldPriceFromApi;
         }
-        
+
         final product = Product(
-          id: item['product_id'],
-          description: productData['description'] ?? 'สินค้า',
-          brand: productData['brand'] ?? '',
-          model: productData['model'] ?? '',
-          category: productData['category'] ?? '',
-          unit: productData['unit'] ?? '',
-          costPrice: (productData['cost_price'] ?? '0').toString(), 
-          sellPrice: finalSellPrice.toString(),
-          quantity: 0
-        );
+            id: item['product_id'],
+            description: productData['description'] ?? 'สินค้า',
+            brand: productData['brand'] ?? '',
+            model: productData['model'] ?? '',
+            category: productData['category'] ?? '',
+            unit: productData['unit'] ?? '',
+            costPrice: (productData['cost_price'] ?? '0').toString(),
+            sellPrice: finalSellPrice.toString(),
+            quantity: 0);
 
         final qty = int.tryParse(item['quantity'].toString()) ?? 1;
         return CartItem(
-          product: product,
-          quantity: qty,
-          discountValue: CartItem.reconstructDiscountValue(discountFromApi, qty)
-        );
+            product: product,
+            quantity: qty,
+            discountValue:
+                CartItem.reconstructDiscountValue(discountFromApi, qty));
       }).toList();
 
       if (mounted) {
         Navigator.pop(context); // ปิด Dialog
-        
+
         // Refresh List หน้าหลัก (เพื่อให้รายการหายไปจากหน้า Pending)
         ref.invalidate(preOrderProvider);
 
         // ไปหน้า Complete Screen
         await launchCheckoutCompleteScreen(
-          context, 
-          cartItemsForPrint, 
-           _safeGetCustomerName(PreOrder.fromJson(rawJson)),
-           customerAddress: custAddr,
+          context,
+          cartItemsForPrint,
+          _safeGetCustomerName(PreOrder.fromJson(rawJson)),
+          customerAddress: custAddr,
           customerPhone: custPhone,
           salespersonName: saleName,
           isCredit: isCreditBool,
-          billNo: rawJson['bill_no']?.toString(), 
+          billNo: receipt.billNo,
           isPreorder: true,
-          totalSoldPrice: double.tryParse(rawJson['total_sold_price']?.toString() ?? ''),
-          totalDiscount: double.tryParse(rawJson['total_discount']?.toString() ?? ''),
+          totalSoldPrice:
+              double.tryParse(rawJson['total_sold_price']?.toString() ?? ''),
+          totalDiscount:
+              double.tryParse(rawJson['total_discount']?.toString() ?? ''),
         );
       }
-
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("เกิดข้อผิดพลาด: $e"), backgroundColor: Colors.red),
+          SnackBar(
+              content: Text("เกิดข้อผิดพลาด: $e"), backgroundColor: Colors.red),
         );
       }
     } finally {
@@ -429,16 +447,29 @@ class _PreOrderDetailDialogState extends ConsumerState<PreOrderDetailDialog> {
 
   // Helper Functions
   String _safeGetCustomerName(dynamic order) {
-    try { return order.customer.name; } catch (_) { 
-      try { return order.customerName; } catch (__) { return "-"; }
+    try {
+      return order.customer.name;
+    } catch (_) {
+      try {
+        return order.customerName;
+      } catch (__) {
+        return "-";
+      }
     }
   }
 
   String _safeGetProductName(dynamic item) {
-    try { return item.productName; } catch (_) { 
-      try { return item.product.description; } catch (__) { return "-"; }
+    try {
+      return item.productName;
+    } catch (_) {
+      try {
+        return item.product.description;
+      } catch (__) {
+        return "-";
+      }
     }
   }
+
 // --- ฟังก์ชันดึงราคาต่อหน่วย ---
   String _getUnitPrice(PreOrderItem item) {
     // ใน Model ตัวแปร price ดึงค่า sold_price มาให้แล้ว นำมาแปลงเป็นตัวเลขได้เลย
@@ -450,7 +481,7 @@ class _PreOrderDetailDialogState extends ConsumerState<PreOrderDetailDialog> {
   String _getTotalPrice(PreOrderItem item) {
     final unitPrice = double.tryParse(item.price) ?? 0.0;
     final qty = item.quantity;
-    
+
     return (unitPrice * qty).toStringAsFixed(2);
   }
 
@@ -460,8 +491,12 @@ class _PreOrderDetailDialogState extends ConsumerState<PreOrderDetailDialog> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(width: 100, child: Text(label, style: const TextStyle(color: Colors.grey))),
-          Expanded(child: Text(value, style: const TextStyle(fontWeight: FontWeight.w500))),
+          SizedBox(
+              width: 100,
+              child: Text(label, style: const TextStyle(color: Colors.grey))),
+          Expanded(
+              child: Text(value,
+                  style: const TextStyle(fontWeight: FontWeight.w500))),
         ],
       ),
     );

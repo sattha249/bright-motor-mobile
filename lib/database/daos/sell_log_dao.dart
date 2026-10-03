@@ -73,10 +73,14 @@ class LocalSellLogItem {
 }
 
 class SellLogDao {
+  final Database? _database;
+  SellLogDao({Database? database}) : _database = database;
+  Future<Database> get database async =>
+      _database ?? await AppDatabase.instance.database;
   final TruckStockDao _truckStockDao = TruckStockDao();
 
   Future<int> insertOfflineSale(LocalSellLog sale) async {
-    final db = await AppDatabase.instance.database;
+    final db = await database;
 
     return await db.transaction((txn) async {
       // 1. Insert header
@@ -118,43 +122,49 @@ class SellLogDao {
         });
 
         // Deduct offline stock in truck using active transaction executor!
-        await _truckStockDao.deductStockQuantity(
+        final deducted = await _truckStockDao.deductStockQuantity(
           sale.truckId,
           item.productId,
           item.quantity,
           executor: txn,
         );
+        if (!deducted) throw StateError('สินค้าในสต็อกมือถือไม่เพียงพอ');
       }
 
       return sellLogId;
     });
   }
 
-  Future<void> upsertServerSellLogsBatch(
-      List<Map<String, dynamic>> rawLogs) async {
-    final db = await AppDatabase.instance.database;
+  double _number(dynamic value, double fallback) => value is num
+      ? value.toDouble()
+      : double.tryParse(value.toString()) ?? fallback;
+
+  Future<void> upsertServerSellLogsBatch(List<Map<String, dynamic>> rawLogs,
+      {bool deductStockForNewSale = false}) async {
+    final db = await database;
     for (final logMap in rawLogs) {
       final serverId = logMap['id'] as int?;
       if (serverId == null) continue;
 
       final existing = await db.query(
         'sell_logs',
-        where: 'id = ?',
-        whereArgs: [serverId],
+        where: logMap['uuid'] != null ? 'id = ? OR uuid = ?' : 'id = ?',
+        whereArgs:
+            logMap['uuid'] != null ? [serverId, logMap['uuid']] : [serverId],
         limit: 1,
       );
 
-      final totalPrice = (logMap['total_price'] as num?)?.toDouble() ?? 0.0;
-      final totalDiscount =
-          (logMap['total_discount'] as num?)?.toDouble() ?? 0.0;
-      final totalSoldPrice =
-          (logMap['total_sold_price'] as num?)?.toDouble() ?? totalPrice;
+      final totalPrice = _number(logMap['total_price'], 0.0);
+      final totalDiscount = _number(logMap['total_discount'], 0.0);
+      final totalSoldPrice = _number(logMap['total_sold_price'], totalPrice);
 
       if (existing.isNotEmpty) {
         final localId = existing.first['local_id'] as int;
         await db.update(
           'sell_logs',
           {
+            'id': serverId,
+            'bill_no': logMap['bill_no'] ?? existing.first['bill_no'],
             'total_price': totalPrice,
             'total_discount': totalDiscount,
             'total_sold_price': totalSoldPrice,
@@ -168,28 +178,27 @@ class SellLogDao {
         await db.transaction((txn) async {
           final localId = await txn.insert('sell_logs', {
             'id': serverId,
+            'uuid': logMap['uuid'],
             'bill_no': logMap['bill_no'] ?? '-',
             'truck_id': logMap['truck_id'],
             'truck_name': logMap['truck_name'],
             'customer_id': logMap['customer_id'],
             'user_id': logMap['user_id'],
             'total_price': totalPrice,
-            'pending_amount':
-                (logMap['pending_amount'] as num?)?.toDouble() ?? 0.0,
-            'interest': (logMap['interest'] as num?)?.toDouble() ?? 0.0,
-            'is_paid': (logMap['is_paid'] == true || logMap['is_paid'] == 1)
-                ? 1
-                : 0,
+            'pending_amount': _number(logMap['pending_amount'], 0.0),
+            'interest': _number(logMap['interest'], 0.0),
+            'is_paid':
+                (logMap['is_paid'] == true || logMap['is_paid'] == 1) ? 1 : 0,
             'total_discount': totalDiscount,
             'total_sold_price': totalSoldPrice,
             'is_credit': logMap['is_credit'] ?? 'cash',
-            'is_preorder': (logMap['is_preorder'] == true ||
-                    logMap['is_preorder'] == 1)
-                ? 1
-                : 0,
+            'is_preorder':
+                (logMap['is_preorder'] == true || logMap['is_preorder'] == 1)
+                    ? 1
+                    : 0,
             'sync_status': 'synced',
-            'created_at': logMap['created_at'] ??
-                DateTime.now().toIso8601String(),
+            'created_at':
+                logMap['created_at'] ?? DateTime.now().toIso8601String(),
             'updated_at': DateTime.now().toIso8601String(),
           });
 
@@ -198,23 +207,31 @@ class SellLogDao {
             for (final itemMap in items) {
               await txn.insert('sell_log_items', {
                 'sell_log_local_id': localId,
-                'product_id': itemMap['product_id'] ?? itemMap['productId'] ?? 0,
-                'quantity': (itemMap['quantity'] as num?)?.toDouble() ?? 0.0,
-                'returned_quantity':
-                    (itemMap['returned_quantity'] as num?)?.toDouble() ?? 0.0,
-                'price': (itemMap['price'] as num?)?.toDouble() ?? 0.0,
-                'total_price':
-                    (itemMap['total_price'] as num?)?.toDouble() ?? 0.0,
-                'discount': (itemMap['discount'] as num?)?.toDouble() ?? 0.0,
-                'sold_price':
-                    (itemMap['sold_price'] as num?)?.toDouble() ?? 0.0,
-                'is_paid': (itemMap['is_paid'] == true ||
-                        itemMap['is_paid'] == 1)
-                    ? 1
-                    : 0,
+                'product_id':
+                    itemMap['product_id'] ?? itemMap['productId'] ?? 0,
+                'quantity': _number(itemMap['quantity'], 0.0),
+                'returned_quantity': _number(itemMap['returned_quantity'], 0.0),
+                'price': _number(itemMap['price'], 0.0),
+                'total_price': _number(itemMap['total_price'], 0.0),
+                'discount': _number(itemMap['discount'], 0.0),
+                'sold_price': _number(itemMap['sold_price'], 0.0),
+                'is_paid':
+                    (itemMap['is_paid'] == true || itemMap['is_paid'] == 1)
+                        ? 1
+                        : 0,
                 'created_at': DateTime.now().toIso8601String(),
                 'updated_at': DateTime.now().toIso8601String(),
               });
+              if (deductStockForNewSale) {
+                final deducted = await _truckStockDao.deductStockQuantity(
+                    logMap['truck_id'] as int,
+                    (itemMap['product_id'] ?? itemMap['productId']) as int,
+                    _number(itemMap['quantity'], 0),
+                    executor: txn);
+                if (!deducted) {
+                  throw StateError('รออัปเดตสต็อกมือถือจากเซิร์ฟเวอร์');
+                }
+              }
             }
           }
         });
@@ -223,7 +240,7 @@ class SellLogDao {
   }
 
   Future<List<Map<String, dynamic>>> getAllSellLogs(int truckId) async {
-    final db = await AppDatabase.instance.database;
+    final db = await database;
     final sales = await db.rawQuery('''
       SELECT sl.*, c.name as customer_name, c.tel as customer_tel
       FROM sell_logs sl
@@ -262,7 +279,7 @@ class SellLogDao {
   }
 
   Future<List<Map<String, dynamic>>> getPendingSyncSales() async {
-    final db = await AppDatabase.instance.database;
+    final db = await database;
     final sales = await db.query(
       'sell_logs',
       where: 'sync_status = ?',
@@ -283,12 +300,33 @@ class SellLogDao {
     return results;
   }
 
-  Future<void> markSynced(int localId, int serverId) async {
-    final db = await AppDatabase.instance.database;
+  /// Only call for a definitive rejection, never for a timeout or server error.
+  Future<void> discardRejectedSale(int localId) async {
+    final db = await database;
+    await db.transaction((txn) async {
+      final sales = await txn.query('sell_logs',
+          where: 'local_id = ? AND sync_status = ?',
+          whereArgs: [localId, 'pending']);
+      if (sales.isEmpty) return;
+      final items = await txn.query('sell_log_items',
+          where: 'sell_log_local_id = ?', whereArgs: [localId]);
+      for (final item in items) {
+        await txn.rawUpdate(
+            'UPDATE truck_stocks SET quantity = quantity + ? WHERE truck_id = ? AND product_id = ?',
+            [item['quantity'], sales.first['truck_id'], item['product_id']]);
+      }
+      await txn
+          .delete('sell_logs', where: 'local_id = ?', whereArgs: [localId]);
+    });
+  }
+
+  Future<void> markSynced(int localId, int serverId, String billNo) async {
+    final db = await database;
     await db.update(
       'sell_logs',
       {
         'id': serverId,
+        'bill_no': billNo,
         'sync_status': 'synced',
         'updated_at': DateTime.now().toIso8601String(),
       },
